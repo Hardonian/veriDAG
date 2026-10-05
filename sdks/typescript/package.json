@@ -33,7 +33,7 @@
   "author": "Veridag Protocol Contributors",
   "license": "Apache-2.0 OR MIT",
   "devDependencies": {
-    "@types/node": "^26.6.3",
+    "@types/node": "^26.6.4",
     "typescript": "^7.0.2"
   }
 }
