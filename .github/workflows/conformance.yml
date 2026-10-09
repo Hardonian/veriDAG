@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@1.95
+      - uses: dtolnay/rust-toolchain@1.96
       - uses: Swatinem/rust-cache@v2
       - name: conformance (golden + malformed)
         run: cargo test -p veridag-testkit --all-features

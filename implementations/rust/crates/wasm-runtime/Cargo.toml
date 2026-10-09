@@ -14,7 +14,7 @@ veridag-capabilities = { version = "1.0.0", path = "../capabilities" }
 veridag-codec = { version = "1.0.0", path = "../codec" }
 thiserror.workspace = true
 anyhow = { version = "1", optional = true }
-wasmtime = { version = "49.0.1", optional = true, default-features = false, features = ["cranelift", "runtime", "gc", "gc-drc"] }
+wasmtime = { version = "49.0.2", optional = true, default-features = false, features = ["cranelift", "runtime", "gc", "gc-drc"] }
 
 [features]
 default = []
