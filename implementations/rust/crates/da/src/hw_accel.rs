@@ -27,7 +27,6 @@ pub enum HwEngineKind {
 /// Acceleration interface for high-throughput batch operations over GF(2^8).
 pub struct HwAccelEngine;
 
-#[allow(clippy::chunks_exact_to_as_chunks)]
 impl HwAccelEngine {
     /// In-place vector XOR: `dst[i] ^= src[i]` using 64-bit unrolled chunks.
     #[inline]
