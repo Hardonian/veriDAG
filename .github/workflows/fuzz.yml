@@ -14,9 +14,15 @@ on:
 jobs:
   canonical-decoders:
     runs-on: ubuntu-latest
+    env:
+      # The repo pins 1.96 in rust-toolchain.toml, which rustup honors over
+      # the workflow's nightly install; cargo-fuzz needs -Z flags (nightly).
+      RUSTUP_TOOLCHAIN: nightly
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly
       - run: cargo install cargo-fuzz --locked
       - name: fuzz canonical decoders
         run: cargo fuzz run canonical-decoders --fuzz-dir fuzz -- -max_total_time=60 -timeout=5
