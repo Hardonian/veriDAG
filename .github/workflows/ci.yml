@@ -55,6 +55,13 @@ jobs:
         with:
           targets: aarch64-unknown-linux-gnu
       - uses: Swatinem/rust-cache@v2
+      # rust-toolchain.toml (channel="1.96") re-resolves the toolchain at
+      # cargo time to a separate rustup install that does NOT carry the
+      # target added by the action input above -> E0463 'can't find crate
+      # for core'. Add the target inside the same directory context so it
+      # lands on the toolchain cargo actually uses.
+      - name: ensure aarch64 std in the resolved toolchain
+        run: rustup target add aarch64-unknown-linux-gnu
       - name: install cross linker
         run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
       - name: build edge binary
