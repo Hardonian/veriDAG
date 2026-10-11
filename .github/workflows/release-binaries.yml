@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@1.96
+      - uses: dtolnay/rust-toolchain@1.120
       - uses: Swatinem/rust-cache@v2
       - name: verify
         run: cargo test --workspace --all-features
@@ -45,14 +45,14 @@ jobs:
           subject-path: release/veridag-linux-x86_64.tar.gz
           sbom-path: release/veridag-linux-x86_64.sbom.json
       - name: upload release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             release/veridag-linux-x86_64.tar.gz
             release/veridag-linux-x86_64.tar.gz.sha256
             release/veridag-linux-x86_64.sbom.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: veridag-linux-x86_64
           path: release/*

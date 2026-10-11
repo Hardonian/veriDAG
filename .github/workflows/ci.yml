@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@1.96
+      - uses: dtolnay/rust-toolchain@1.120
         with:
           components: rustfmt, clippy, rust-src
       - uses: Swatinem/rust-cache@v2
@@ -51,10 +51,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@1.96
+      - uses: dtolnay/rust-toolchain@1.120
         with:
           targets: aarch64-unknown-linux-gnu
       - uses: Swatinem/rust-cache@v2
+      # rust-toolchain.toml (channel="1.96") re-resolves the toolchain at
+      # cargo time to a separate rustup install that does NOT carry the
+      # target added by the action input above -> E0463 'can't find crate
+      # for core'. Add the target inside the same directory context so it
+      # lands on the toolchain cargo actually uses.
+      - name: ensure aarch64 std in the resolved toolchain
+        run: rustup target add aarch64-unknown-linux-gnu
       - name: install cross linker
         run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
       - name: build edge binary
@@ -109,7 +116,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - uses: dtolnay/rust-toolchain@1.96
+      - uses: dtolnay/rust-toolchain@1.120
       - name: validate manifests
         run: python scripts/validate-industry-packs.py
       - name: test adapters
@@ -159,7 +166,7 @@ jobs:
       - name: capture validator logs
         if: always()
         run: docker compose logs --no-color > docker-devnet.log
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: docker-devnet-logs
