@@ -52,7 +52,7 @@ jobs:
             release/veridag-linux-x86_64.tar.gz
             release/veridag-linux-x86_64.tar.gz.sha256
             release/veridag-linux-x86_64.sbom.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: veridag-linux-x86_64
           path: release/*

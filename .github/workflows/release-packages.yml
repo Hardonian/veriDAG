@@ -46,7 +46,7 @@ jobs:
         with:
           subject-path: release/rust/*.crate
       - name: retain Rust release bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: veridag-rust-${{ github.run_id }}
           path: release/rust/
@@ -101,7 +101,7 @@ jobs:
         with:
           subject-path: release/npm/*.tgz
       - name: retain npm release bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: veridag-npm-${{ github.run_id }}
           path: release/npm/
@@ -156,7 +156,7 @@ jobs:
         with:
           subject-path: release/python/veridag-*
       - name: retain Python release bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: veridag-python-${{ github.run_id }}
           path: release/python/
