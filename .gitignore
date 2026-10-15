@@ -14,4 +14,4 @@ contracts/cache/
 devnet-data/
 artifacts/
 formal/traces/*.itf.json.tmp
-.vercel
+.vercel/

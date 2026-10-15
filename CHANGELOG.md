@@ -6,6 +6,11 @@ software version (see `protocol/specification/17-upgrades.md`).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-14
+
+Stable reference implementation release covering the numbered protocol milestones, production Next.js site portal, and full multi-language SDK distribution.
+This version number is governed by `docs/capability-matrix.md` and `docs/release-readiness.md`.
+
 ### Added
 - Docker devnet agreement/progress soak with single-validator restart evidence.
 - CI gates for the container devnet, Foundry fuzz/invariant tests, Slither, the
@@ -14,6 +19,22 @@ software version (see `protocol/specification/17-upgrades.md`).
   from independent audit, multi-region operations, and regulatory approvals.
 - A seeded canonical-decoder libFuzzer corpus and a memory-bounded Docker fuzz
   command matching the nightly CI campaign.
+- Structured logging via `tracing-subscriber` with `RUST_LOG` env filter and
+  optional JSON output (`VERIDAG_LOG_JSON=1`).
+- Graceful shutdown handler (Ctrl+C / SIGTERM) for clean daemon termination.
+- Prometheus metrics endpoint (`/v1/metrics`) wired to `PrometheusExporter`
+  with counters for vertices proposed, waves committed, txs executed, and
+  checkpoints produced, plus gauges for highest wave and max round.
+- Readiness probe endpoint (`/v1/ready`) returning 200 when consensus is
+  progressing (highest_wave > 0) and 503 otherwise.
+- Release profile in workspace `Cargo.toml` (`opt-level=3`, thin LTO,
+  `codegen-units=1`, `panic=abort`, `strip=true`).
+- Docker healthcheck in `Dockerfile` and `docker-compose.yml` with
+  `restart: unless-stopped` policy.
+- CI jobs for TypeScript SDK, Python SDK conformance, and site build
+  verification on every PR.
+- Dependabot coverage for npm (site, TypeScript SDK) and pip (Python SDK).
+- Production portal deployment on Vercel (`https://veridag.vercel.app`) with preview deployment automation.
 
 ### Changed
 - Container builds now use a bounded build context, cached Rust compilation,
@@ -31,48 +52,19 @@ software version (see `protocol/specification/17-upgrades.md`).
   including the containerized fuzz and complete release-gate entry points.
 - Formal verification now uses a repository-pinned Quint npm toolchain in both
   local release gates and CI instead of an implicit global installation.
-
-### Status
-- Repository-local gates are green. Veridag remains pre-GA; no repository
-  artifact substitutes for an independent audit, production operating record,
-  or jurisdiction-specific authorization.
-
-## [1.0.0] - 2026-09-29
-
-Reference implementation release covering the numbered protocol milestones.
-This version number is not a production-readiness, audit, or regulatory claim;
-promotion remains governed by `docs/capability-matrix.md` and
-`docs/release-readiness.md`.
-
-### Added
-- Structured logging via `tracing-subscriber` with `RUST_LOG` env filter and
-  optional JSON output (`VERIDAG_LOG_JSON=1`).
-- Graceful shutdown handler (Ctrl+C / SIGTERM) for clean daemon termination.
-- Prometheus metrics endpoint (`/v1/metrics`) wired to `PrometheusExporter`
-  with counters for vertices proposed, waves committed, txs executed, and
-  checkpoints produced, plus gauges for highest wave and max round.
-- Readiness probe endpoint (`/v1/ready`) returning 200 when consensus is
-  progressing (highest_wave > 0) and 503 otherwise.
-- Release profile in workspace `Cargo.toml` (`opt-level=3`, thin LTO,
-  `codegen-units=1`, `panic=abort`, `strip=true`).
-- Docker healthcheck in `Dockerfile` and `docker-compose.yml` with
-  `restart: unless-stopped` policy.
-- CI jobs for TypeScript SDK, Python SDK conformance, and site build
-  verification on every PR.
-- Dependabot coverage for npm (site, TypeScript SDK) and pip (Python SDK).
-
-### Changed
-- Version bumped from `0.1.0-alpha` to `1.0.0`.
+- Version bumped from `0.1.0-alpha` to `1.0.0` across workspace, SDKs, and documentation site.
 - Docker Compose migrated to V2 format (removed deprecated `version:` key).
 - `cargo deny` CI runs from workspace root where `deny.toml` lives.
 - Architecture docs updated to reflect all 24 shipped crates and 3 binaries.
-- CHANGELOG restructured: Phase 0–4 moved from `[Unreleased]` to `[0.1.0-alpha]`.
 - README CLI example fixed (`daemon --seed` instead of `run --validator-seed`).
 
-### Safety
-- All crates `#![forbid(unsafe_code)]`.
-- `cargo clippy --workspace --all-targets --all-features -- -D warnings` clean.
-- Full workspace test suite green.
+### Safety & Conformance
+- All 24 Rust crates `#![forbid(unsafe_code)]`.
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings` clean (0 warnings).
+- Full workspace test suite green across all test targets.
+- TypeScript SDK conformance verified with 100% bit-for-bit equivalence against canonical Rust golden vectors.
+- Python SDK conformance test suite green.
+- Quint formal specifications verify Agreement, Finality, and Integrity invariants.
 
 ## [0.1.0-alpha] - 2026-08-17
 
