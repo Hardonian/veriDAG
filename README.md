@@ -1,4 +1,4 @@
-# ⚡ Veridag
+# ⚡ VeriDAG
 
 ## Deterministic shared state for multi-party systems
 
@@ -14,7 +14,7 @@
 
 ---
 
-## What is Veridag?
+## What is VeriDAG?
 
 **Veridag** is an implementation-independent protocol and Rust reference engine for **deterministic, Byzantine-resilient, capability-secured distributed computation**.
 
