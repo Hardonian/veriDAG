@@ -12,6 +12,7 @@ Stable reference implementation release covering the numbered protocol milestone
 This version number is governed by `docs/capability-matrix.md` and `docs/release-readiness.md`.
 
 ### Added
+
 - Docker devnet agreement/progress soak with single-validator restart evidence.
 - CI gates for the container devnet, Foundry fuzz/invariant tests, Slither, the
   Quint model, industry manifests, SDKs, and the production site build.
@@ -37,6 +38,7 @@ This version number is governed by `docs/capability-matrix.md` and `docs/release
 - Production portal deployment on Vercel (`https://veridag.vercel.app`) with preview deployment automation.
 
 ### Changed
+
 - Container builds now use a bounded build context, cached Rust compilation,
   and a single build job to remain reliable under Docker Desktop resource caps.
 - Validator recovery re-advertises its persisted frontier and performs bounded,
@@ -59,6 +61,7 @@ This version number is governed by `docs/capability-matrix.md` and `docs/release
 - README CLI example fixed (`daemon --seed` instead of `run --validator-seed`).
 
 ### Safety & Conformance
+
 - All 24 Rust crates `#![forbid(unsafe_code)]`.
 - `cargo clippy --workspace --all-targets --all-features -- -D warnings` clean (0 warnings).
 - Full workspace test suite green across all test targets.
@@ -73,6 +76,7 @@ persistence + networking + smart contract + cross-chain + institutional
 settlement pipeline is complete and tested across Phases 0–26.
 
 ### Added
+
 - Phase 0: normative protocol specification 00–22.
 - Phase 1: Quint formal model (`consensus.qnt`, `invariants.qnt`) with
   Agreement/Finality/Integrity invariants.
@@ -120,6 +124,7 @@ settlement pipeline is complete and tested across Phases 0–26.
   `docs/architecture.md`, ROADMAP phase status.
 
 ### Safety
+
 - All crates `#![forbid(unsafe_code)]`.
 - `cargo clippy --workspace --all-targets --all-features -- -D warnings` clean.
 - Full workspace test suite green.
