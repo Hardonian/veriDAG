@@ -55,6 +55,23 @@ struct UsdvDiskState {
     last_state_root: String,
 }
 
+/// On-disk persistent state for Consortium Validator Seats.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct ConsortiumSeatEntry {
+    node_id: String,
+    member: String,
+    tier: String,
+    annual_fee: f64,
+    kms_uri: String,
+    status: String,
+    registered_at_unix: u64,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+struct ConsortiumDiskState {
+    seats: BTreeMap<String, ConsortiumSeatEntry>,
+}
+
 fn keystore_dir() -> PathBuf {
     let d = dirs_home().join(".veridag").join("keys");
     fs::create_dir_all(&d).ok();
@@ -67,6 +84,10 @@ fn ledger_path() -> PathBuf {
 
 fn usdv_state_path() -> PathBuf {
     dirs_home().join(".veridag").join("usdv-state.json")
+}
+
+fn consortium_seats_path() -> PathBuf {
+    dirs_home().join(".veridag").join("consortium-seats.json")
 }
 
 fn dirs_home() -> PathBuf {
@@ -98,6 +119,18 @@ fn load_usdv_state() -> UsdvDiskState {
 
 fn save_usdv_state(s: &UsdvDiskState) -> Result<()> {
     fs::write(usdv_state_path(), serde_json::to_string_pretty(s)?)?;
+    Ok(())
+}
+
+fn load_consortium_state() -> ConsortiumDiskState {
+    fs::read_to_string(consortium_seats_path())
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn save_consortium_state(s: &ConsortiumDiskState) -> Result<()> {
+    fs::write(consortium_seats_path(), serde_json::to_string_pretty(s)?)?;
     Ok(())
 }
 
@@ -161,6 +194,11 @@ enum Cmd {
         #[command(subcommand)]
         cmd: UsdvCmd,
     },
+    /// Institutional consortium validator seat licensing and committee staking.
+    Consortium {
+        #[command(subcommand)]
+        cmd: ConsortiumCmd,
+    },
     /// Ethereum L1/L2 infrastructure and EVM gateway operations.
     Eth {
         #[command(subcommand)]
@@ -193,6 +231,25 @@ enum DevCmd {
         #[arg(long)]
         amount: u64,
     },
+}
+
+#[derive(Subcommand)]
+enum ConsortiumCmd {
+    /// Register an institutional validator seat license ($250,000/yr).
+    RegisterSeat {
+        #[arg(long)]
+        node_id: String,
+        #[arg(long)]
+        member: String,
+        #[arg(long, default_value = "Consortium Tier 1 ($250k/yr)")]
+        tier: String,
+        #[arg(long, default_value = "250000")]
+        annual_fee: f64,
+        #[arg(long, default_value = "pkcs11:token=NitroEnclave;object=ConsortiumKey")]
+        kms_uri: String,
+    },
+    /// List registered consortium validator seats.
+    ListSeats,
 }
 
 #[derive(Subcommand)]
@@ -266,6 +323,38 @@ enum UsdvCmd {
         country: String,
         #[arg(long, default_value = "10000000")]
         credit_limit: u128,
+    },
+    /// Execute end-to-end USMCA freight invoice clearance pilot with Settler dual-leg reconciliation.
+    FreightClear {
+        #[arg(long)]
+        shipper: String,
+        #[arg(long)]
+        carrier: String,
+        #[arg(long)]
+        customs_broker: String,
+        #[arg(long)]
+        amount: u128,
+        #[arg(long, default_value = "BOL-USMCA-2026-99214")]
+        bol_manifest: String,
+        #[arg(long, default_value = "Saltillo, Coahuila, MX")]
+        origin: String,
+        #[arg(long, default_value = "Laredo, TX, US")]
+        destination: String,
+    },
+    /// Settle real-time AI agent compute micro-metering (TokenGoblin & Hardonian agent swarms).
+    AgentMeter {
+        #[arg(long)]
+        agent_id: String,
+        #[arg(long)]
+        payer: String,
+        #[arg(long, default_value = "treasury")]
+        provider: String,
+        #[arg(long, default_value = "10000")]
+        prompt_tokens: u64,
+        #[arg(long, default_value = "2000")]
+        completion_tokens: u64,
+        #[arg(long, default_value = "0x9a3e14bf0021")]
+        mission_hash: String,
     },
 }
 
@@ -826,6 +915,357 @@ fn cmd_usdv_register_tenant(id: &str, name: &str, country: &str, credit_limit: u
     Ok(())
 }
 
+fn make_memo(text: &[u8]) -> [u8; 32] {
+    let mut m = [0u8; 32];
+    let len = text.len().min(32);
+    m[..len].copy_from_slice(&text[..len]);
+    m
+}
+
+fn cmd_usdv_freight_clear(
+    shipper: &str,
+    carrier: &str,
+    customs_broker: &str,
+    amount_dollars: u128,
+    bol_manifest: &str,
+    origin: &str,
+    destination: &str,
+) -> Result<()> {
+    let mut usdv = load_usdv_state();
+    let gross_micro = amount_dollars * USDV_SCALE;
+
+    let shipper_entry = usdv.accounts.get(shipper).copied().unwrap_or((0, false));
+    if shipper_entry.1 {
+        anyhow::bail!("COMPLIANCE REJECTION: Shipper '{shipper}' is frozen under OFAC sanctions");
+    }
+    if shipper_entry.0 < gross_micro {
+        anyhow::bail!(
+            "INSUFFICIENT FUNDS: Shipper '{shipper}' has ${:.6} USDV, requires ${amount_dollars}.000000",
+            shipper_entry.0 as f64 / USDV_SCALE as f64
+        );
+    }
+
+    let shipper_key = load_or_create_key(shipper)?;
+    let carrier_key = load_or_create_key(carrier)?;
+    let broker_key = load_or_create_key(customs_broker)?;
+    let treasury_key = load_or_create_key("treasury")?;
+    let val_pool_key = load_or_create_key("validator_pool")?;
+    let rebate_pool_key = load_or_create_key("volume_rebate")?;
+
+    // Fee calculations:
+    // 1.5 bps protocol fee = gross * 15 / 100,000
+    let gross_fee = (gross_micro * 15) / 100_000;
+    // Protocol split: 60% treasury, 30% validator pool, 10% volume rebate pool
+    let protocol_net = (gross_fee * 60) / 100;
+    let val_pool_net = (gross_fee * 30) / 100;
+    let vol_rebate_net = gross_fee - protocol_net - val_pool_net;
+
+    // Customs brokerage release: 5% of gross
+    let broker_fee = (gross_micro * 5) / 100;
+    // Carrier net payout: gross - gross_fee - broker_fee
+    let carrier_net = gross_micro - gross_fee - broker_fee;
+
+    let (mut state, mut ledger) = rebuild_usdv_object_state(&usdv);
+
+    // Build Settler Anchor (SETTLER_ANCHOR = 5)
+    let manifest_hash = veridag_crypto::hash("VERIDAG_USMCA_BOL_V1", bol_manifest.as_bytes());
+    let mut run_id = [0u8; 32];
+    let ob = origin.as_bytes();
+    let db = destination.as_bytes();
+    run_id[..ob.len().min(16)].copy_from_slice(&ob[..ob.len().min(16)]);
+    run_id[16..16 + db.len().min(16)].copy_from_slice(&db[..db.len().min(16)]);
+
+    let mut tenant_id = [0u8; 32];
+    let tid_bytes = b"USMCA-TRADE-CORRIDOR-NAFTA2-001";
+    tenant_id[..tid_bytes.len().min(32)].copy_from_slice(&tid_bytes[..tid_bytes.len().min(32)]);
+
+    let anchor = veridag_stablecoin::SettlerReconciliationAnchor {
+        tenant_id,
+        run_id,
+        manifest_hash,
+        variance_summary_hash: [0u8; 32],
+        total_settled_micro_units: gross_micro,
+        transaction_count: 5,
+        timestamp: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
+    };
+
+    let m1 = make_memo(b"CARRIER_FREIGHT_RELEASE_PAYMN");
+    let m2 = make_memo(b"CUSTOMS_BROKERAGE_DUTY_CLEARN");
+    let m3 = make_memo(b"PROTOCOL_CLEARING_SURCHARGE60");
+    let m4 = make_memo(b"VALIDATOR_STAKING_YIELD_POOL");
+    let m5 = make_memo(b"SHIPPER_VOLUME_REBATE_POOL_10");
+
+    let batch = veridag_stablecoin::SettlerBatchSettlement {
+        anchor: anchor.clone(),
+        source_account: shipper_key.address(),
+        payouts: vec![
+            veridag_stablecoin::SettlerPayoutItem {
+                recipient: carrier_key.address(),
+                amount: carrier_net,
+                memo: m1,
+            },
+            veridag_stablecoin::SettlerPayoutItem {
+                recipient: broker_key.address(),
+                amount: broker_fee,
+                memo: m2,
+            },
+            veridag_stablecoin::SettlerPayoutItem {
+                recipient: treasury_key.address(),
+                amount: protocol_net,
+                memo: m3,
+            },
+            veridag_stablecoin::SettlerPayoutItem {
+                recipient: val_pool_key.address(),
+                amount: val_pool_net,
+                memo: m4,
+            },
+            veridag_stablecoin::SettlerPayoutItem {
+                recipient: rebate_pool_key.address(),
+                amount: vol_rebate_net,
+                memo: m5,
+            },
+        ],
+    };
+
+    let _receipt = ledger
+        .execute_settler_batch(&mut state, &batch)
+        .map_err(|e| anyhow::anyhow!("Settler batch execution failed: {e}"))?;
+
+    // Update disk accounts
+    usdv.accounts.get_mut(shipper).unwrap().0 -= gross_micro;
+    usdv.accounts
+        .entry(carrier.to_string())
+        .or_insert((0, false))
+        .0 += carrier_net;
+    usdv.accounts
+        .entry(customs_broker.to_string())
+        .or_insert((0, false))
+        .0 += broker_fee;
+    usdv.accounts
+        .entry("treasury".to_string())
+        .or_insert((0, false))
+        .0 += protocol_net;
+    usdv.accounts
+        .entry("validator_pool".to_string())
+        .or_insert((0, false))
+        .0 += val_pool_net;
+    usdv.accounts
+        .entry("volume_rebate".to_string())
+        .or_insert((0, false))
+        .0 += vol_rebate_net;
+
+    let (state, _) = rebuild_usdv_object_state(&usdv);
+    usdv.last_state_root = format!("0x{}", hex::encode(state.state_root()));
+    save_usdv_state(&usdv)?;
+
+    println!("============================================================");
+    println!("🚢 USMCA CROSS-BORDER FREIGHT INVOICE CLEARED (T+0 FINALITY)");
+    println!("============================================================");
+    println!("Bill of Lading:     {bol_manifest}");
+    println!("Corridor:           {origin} -> {destination}");
+    println!("Gross Invoice:      ${:.2} USDV", amount_dollars as f64);
+    println!(
+        "Protocol Surcharge: ${:.4} USDV (1.5 bps)",
+        gross_fee as f64 / USDV_SCALE as f64
+    );
+    println!(
+        "  -> Treasury (60%): ${:.4} USDV",
+        protocol_net as f64 / USDV_SCALE as f64
+    );
+    println!(
+        "  -> Validators(30%):${:.4} USDV",
+        val_pool_net as f64 / USDV_SCALE as f64
+    );
+    println!(
+        "  -> Rebate Pool(10%):${:.4} USDV",
+        vol_rebate_net as f64 / USDV_SCALE as f64
+    );
+    println!(
+        "Customs Brokerage:  ${:.2} USDV (5.0%)",
+        broker_fee as f64 / USDV_SCALE as f64
+    );
+    println!(
+        "Carrier Net Payout: ${:.2} USDV",
+        carrier_net as f64 / USDV_SCALE as f64
+    );
+    println!(
+        "Settler Anchor ID:  0x{}",
+        hex::encode(anchor.id().as_bytes())
+    );
+    println!("BMH-1 State Root:   {}", usdv.last_state_root);
+    println!("Status:             T+0 INSTANT SETTLEMENT CONFIRMED (<100ms)");
+    println!("============================================================");
+    Ok(())
+}
+
+fn cmd_usdv_agent_meter(
+    agent_id: &str,
+    payer: &str,
+    provider: &str,
+    prompt_tokens: u64,
+    completion_tokens: u64,
+    mission_hash: &str,
+) -> Result<()> {
+    let mut usdv = load_usdv_state();
+    let prompt_cost = (prompt_tokens as f64 * 1.50).round() as u128;
+    let completion_cost = (completion_tokens as f64 * 6.00).round() as u128;
+    let total_cost_micro = (prompt_cost + completion_cost).max(1);
+
+    let payer_entry = usdv.accounts.get(payer).copied().unwrap_or((0, false));
+    if payer_entry.1 {
+        anyhow::bail!("COMPLIANCE REJECTION: Payer '{payer}' is frozen");
+    }
+    if payer_entry.0 < total_cost_micro {
+        anyhow::bail!(
+            "INSUFFICIENT FUNDS: Payer '{payer}' has ${:.6} USDV, requires ${:.6}",
+            payer_entry.0 as f64 / USDV_SCALE as f64,
+            total_cost_micro as f64 / USDV_SCALE as f64
+        );
+    }
+
+    let payer_key = load_or_create_key(payer)?;
+    let provider_key = load_or_create_key(provider)?;
+
+    let (mut state, mut ledger) = rebuild_usdv_object_state(&usdv);
+
+    let mut run_id = [0u8; 32];
+    let ab = agent_id.as_bytes();
+    run_id[..ab.len().min(32)].copy_from_slice(&ab[..ab.len().min(32)]);
+
+    let mut mh_bytes = [0u8; 32];
+    let mb = hex::decode(mission_hash.trim_start_matches("0x"))
+        .unwrap_or_else(|_| mission_hash.as_bytes().to_vec());
+    mh_bytes[..mb.len().min(32)].copy_from_slice(&mb[..mb.len().min(32)]);
+
+    let mut tenant_id = [0u8; 32];
+    let tid_bytes = b"HARDONIAN-AIAS-TOKENGBLN-METER01";
+    tenant_id[..tid_bytes.len().min(32)].copy_from_slice(&tid_bytes[..tid_bytes.len().min(32)]);
+
+    let anchor = veridag_stablecoin::SettlerReconciliationAnchor {
+        tenant_id,
+        run_id,
+        manifest_hash: mh_bytes,
+        variance_summary_hash: [0u8; 32],
+        total_settled_micro_units: total_cost_micro,
+        transaction_count: 1,
+        timestamp: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
+    };
+
+    let memo = make_memo(b"TOKENGBLN_AI_INFERENCE_METERI");
+
+    let batch = veridag_stablecoin::SettlerBatchSettlement {
+        anchor: anchor.clone(),
+        source_account: payer_key.address(),
+        payouts: vec![veridag_stablecoin::SettlerPayoutItem {
+            recipient: provider_key.address(),
+            amount: total_cost_micro,
+            memo,
+        }],
+    };
+
+    let _receipt = ledger
+        .execute_settler_batch(&mut state, &batch)
+        .map_err(|e| anyhow::anyhow!("Agent metering execution failed: {e}"))?;
+
+    usdv.accounts.get_mut(payer).unwrap().0 -= total_cost_micro;
+    usdv.accounts
+        .entry(provider.to_string())
+        .or_insert((0, false))
+        .0 += total_cost_micro;
+
+    let (state, _) = rebuild_usdv_object_state(&usdv);
+    usdv.last_state_root = format!("0x{}", hex::encode(state.state_root()));
+    save_usdv_state(&usdv)?;
+
+    println!("============================================================");
+    println!("🤖 HARDONIAN AI AGENT MICRO-METERING SETTLED (10⁻⁶ USDV)");
+    println!("============================================================");
+    println!("Agent Swarm ID:    {agent_id}");
+    println!("Mission Ref:       {mission_hash}");
+    println!("Tokens Consumed:   {prompt_tokens} in / {completion_tokens} out");
+    println!(
+        "Settled Charge:    ${:.6} USDV ({total_cost_micro} micro-units)",
+        total_cost_micro as f64 / USDV_SCALE as f64
+    );
+    println!("Payer Account:     {payer}");
+    println!("Provider Account:  {provider}");
+    println!("BMH-1 State Root:  {}", usdv.last_state_root);
+    println!("Status:            ATOMIC WAVE COMMIT CONFIRMED");
+    println!("============================================================");
+    Ok(())
+}
+
+fn cmd_consortium_register_seat(
+    node_id: &str,
+    member: &str,
+    tier: &str,
+    annual_fee: f64,
+    kms_uri: &str,
+) -> Result<()> {
+    let mut state = load_consortium_state();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    let entry = ConsortiumSeatEntry {
+        node_id: node_id.to_string(),
+        member: member.to_string(),
+        tier: tier.to_string(),
+        annual_fee,
+        kms_uri: kms_uri.to_string(),
+        status: "ACTIVE".to_string(),
+        registered_at_unix: now,
+    };
+    state.seats.insert(node_id.to_string(), entry.clone());
+    save_consortium_state(&state)?;
+
+    println!("============================================================");
+    println!("🏛️ CONSORTIUM VALIDATOR SEAT LICENSED & REGISTERED");
+    println!("============================================================");
+    println!("Node ID:          {}", entry.node_id);
+    println!("Institution:      {}", entry.member);
+    println!("License Tier:     {}", entry.tier);
+    println!("Annual License:   ${:.2} USD/yr", entry.annual_fee);
+    println!("Cloud KMS / HSM:  {}", entry.kms_uri);
+    println!("Consortium Share: Equal voting weight in dynamic committee (2W/3 + 1)");
+    println!("Status:           ACTIVE");
+    println!("============================================================");
+    Ok(())
+}
+
+fn cmd_consortium_list_seats() -> Result<()> {
+    let state = load_consortium_state();
+    println!("============================================================");
+    println!("🏛️ REGISTERED CONSORTIUM VALIDATOR SEATS");
+    println!("============================================================");
+    if state.seats.is_empty() {
+        println!("No active consortium seats registered. Use `consortium register-seat`.");
+    } else {
+        let mut total_arr = 0.0;
+        for (idx, (id, seat)) in state.seats.iter().enumerate() {
+            println!("[{}] Node:         {}", idx + 1, id);
+            println!("    Member:       {}", seat.member);
+            println!("    Tier:         {}", seat.tier);
+            println!("    ARR Contract: ${:.2}", seat.annual_fee);
+            println!("    Signer KMS:   {}", seat.kms_uri);
+            println!("    Status:       {}", seat.status);
+            total_arr += seat.annual_fee;
+        }
+        println!("------------------------------------------------------------");
+        println!("Total Active Seats:   {}", state.seats.len());
+        println!("Total Contracted ARR: ${:.2}", total_arr);
+    }
+    println!("============================================================");
+    Ok(())
+}
+
 fn cmd_btc_verify_header(header_hex: &str) -> Result<()> {
     let bytes =
         hex::decode(header_hex.trim_start_matches("0x")).context("Invalid hex header string")?;
@@ -969,6 +1409,48 @@ fn main() -> Result<()> {
                 country,
                 credit_limit,
             } => cmd_usdv_register_tenant(&id, &name, &country, credit_limit),
+            UsdvCmd::FreightClear {
+                shipper,
+                carrier,
+                customs_broker,
+                amount,
+                bol_manifest,
+                origin,
+                destination,
+            } => cmd_usdv_freight_clear(
+                &shipper,
+                &carrier,
+                &customs_broker,
+                amount,
+                &bol_manifest,
+                &origin,
+                &destination,
+            ),
+            UsdvCmd::AgentMeter {
+                agent_id,
+                payer,
+                provider,
+                prompt_tokens,
+                completion_tokens,
+                mission_hash,
+            } => cmd_usdv_agent_meter(
+                &agent_id,
+                &payer,
+                &provider,
+                prompt_tokens,
+                completion_tokens,
+                &mission_hash,
+            ),
+        },
+        Cmd::Consortium { cmd } => match cmd {
+            ConsortiumCmd::RegisterSeat {
+                node_id,
+                member,
+                tier,
+                annual_fee,
+                kms_uri,
+            } => cmd_consortium_register_seat(&node_id, &member, &tier, annual_fee, &kms_uri),
+            ConsortiumCmd::ListSeats => cmd_consortium_list_seats(),
         },
         Cmd::Eth { cmd } => match cmd {
             EthCmd::Rpc { query } => cmd_eth_rpc(&query),

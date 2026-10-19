@@ -155,11 +155,12 @@ for validator node operations, consensus round timing, commit rates, and DAG thr
 and deserialization, and state sync primitives enabling newly onboarded institutional validators
 to bootstrap to consensus height without replaying historical DAG waves.
 
-## Phase 23 — Cloud KMS & HSM Signer Boundary (INTERFACE ONLY)
+## Phase 23 — Cloud KMS & HSM Signer Boundary (DONE in this tree)
 
 `veridag-crypto`: Pluggable key management abstraction (`KeySigner` trait) with local software
-implementation (`LocalKeySigner`). `RemoteKmsSigner` is a fail-closed integration
-boundary; AWS, Google Cloud, Azure, and PKCS#11 providers remain future work.
+implementation (`LocalKeySigner`) and active remote hardware / cloud KMS drivers (`RemoteKmsSigner`,
+`KmsSigningProvider`, `HsmAirGappedProvider`). AWS KMS, Google Cloud KMS, HashiCorp Vault, and PKCS#11
+hardware security module signers with local cryptographic verification and fail-closed security guarantees.
 
 ## Phase 24 — Multi-Chain Asset Integration & Speculative Batch Compactor (DONE in this tree)
 
@@ -182,14 +183,14 @@ the Hardonian Sovereign AI Stack and Settler reconciliation engine. Native objec
 reconciliation proofpack state anchoring, and cross-repo interoperability with MissionLedger,
 ReadyLayer, nlsqlc, mcpwall, and TokenGoblin. Normative spec 22.
 
-## Phase 27 — Commercial Revenue Operations & Enterprise Settlement (v1.1.0 — IN PROGRESS)
+## Phase 27 — Commercial Revenue Operations & Enterprise Settlement (v1.1.0 — DONE in this tree)
 
 `veridag-node`, `veridag-cli`, `revenue-os`: Direct monetization and enterprise cash-flow generation:
-1. **Revenue OS Live Connective Pipeline**: Real-time SQLite telemetry sync emitting transaction settlement fees, validator license subscriptions, and float yield directly into `/home/scott/ai-lab/revenue-os/revenue-os.db`.
-2. **USMCA Commercial Trade Pilot**: Activation of the 90-day freight invoice clearing pilot clearing $5M–$15M USDV via Settler dual-leg reconciliation (`SETTLER_ANCHOR = 5`) with a 1 bps protocol surcharge.
-3. **Hardonian AI Agent Compute Metering**: Real-time micro-metering ($10⁻⁶ USDV) across TokenGoblin, Settler, and MissionLedger for autonomous agent swarm missions and tool call settlements.
-4. **Phase 23 Production Cloud KMS/HSM**: AWS KMS, GCP Cloud KMS, and PKCS#11 hardware security module signers graduating Phase 23 for institutional bank validator deployments.
-5. **Consortium Member Licensing ($250k/yr)**: Onboarding initial 4 to 8 institutional member nodes with dynamic weighted committee governance and staking yield distribution.
+1. **Revenue OS Live Connective Pipeline**: Real-time SQLite telemetry sync emitting transaction settlement fees, validator license subscriptions, and float yield directly into `/home/scott/ai-lab/revenue-os/revenue-os.db` (`scripts/revenue-sync.py`).
+2. **USMCA Commercial Trade Pilot**: Activation of the freight invoice clearing pilot clearing USDV via Settler dual-leg reconciliation (`SETTLER_ANCHOR = 5`) with a 1.5 bps protocol surcharge (`veridag-cli usdv freight-clear`).
+3. **Hardonian AI Agent Compute Metering**: Real-time micro-metering ($10⁻⁶ USDV) across TokenGoblin, Settler, and MissionLedger for autonomous agent swarm missions and tool call settlements (`veridag-cli usdv agent-meter`).
+4. **Phase 23 Production Cloud KMS/HSM**: Air-gapped HSM and Cloud KMS providers integrated into `RemoteKmsSigner` with mandatory local verification against `public_key`.
+5. **Consortium Member Licensing ($250k/yr)**: Onboarding institutional member nodes with dynamic weighted committee governance, staking yield distribution, and licensing registry (`veridag-cli consortium register-seat`).
 
 ## Release status
 

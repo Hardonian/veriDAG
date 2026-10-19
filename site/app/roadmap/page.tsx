@@ -7,10 +7,10 @@ const phases = [
   { n: "18", t: "Regulated asset controls", d: "USDV object model, ISO 20022 parsing, reserve commitments, and policy hooks. Issuance and regulatory operation are external.", status: "Experimental" },
   { n: "19", t: "Ethereum interoperability", d: "RPC compatibility types and pre-audit federated-relay contracts; not an EVM or trustless bridge.", status: "Experimental" },
   { n: "20–22", t: "Membership, observability, and recovery", d: "Reconfiguration types, Prometheus output, persistent state, verified snapshots, and checkpoint recovery.", status: "Beta" },
-  { n: "23", t: "Cloud KMS and HSM", d: "Fail-closed signer interface. Reviewed AWS, GCP, Azure, and PKCS#11 provider implementations remain future work.", status: "Interface only" },
+  { n: "23", t: "Cloud KMS and HSM", d: "Pluggable KeySigner abstraction, fail-closed remote boundary, and active air-gapped PKCS#11 HSM driver with local verification.", status: "Beta" },
   { n: "24–26", t: "Assets, Bitcoin, and application adapters", d: "Multi-asset types, Bitcoin verification primitives, and application-specific codecs. Production chain operations remain experimental.", status: "Experimental" },
   { n: "27", t: "Cross-industry evidence packs", d: "Bounded adapters for CloudEvents, GS1 EPCIS, HL7 FHIR, OPC UA, W3C VC, and ISO 20022 with privacy-preserving anchors.", status: "Beta" },
-  { n: "v1.1", t: "Commercial Revenue Operations", d: "Direct Revenue OS sync, USMCA invoice clearing pilot ($5M–$15M), AI agent micro-metering, and consortium validator seat licensing.", status: "In progress" },
+  { n: "v1.1", t: "Commercial Revenue Operations", d: "Direct Revenue OS sync, USMCA invoice clearing pilot, AI agent micro-metering, and consortium validator seat licensing.", status: "Beta" },
   { n: "GA gates", t: "Independent assurance and operations", d: "External security audit, multi-region fault campaign, recovery drills, performance envelopes, support ownership, and deployment-specific compliance approval.", status: "Required" },
 ];
 

@@ -299,6 +299,87 @@ def run_self_test() -> None:
         print("[TEST] Self-test completed successfully with 0 errors.")
 
 
+def sync_from_cli_state(conn: sqlite3.Connection) -> None:
+    home = Path(os.environ.get("HOME") or os.environ.get("USERPROFILE") or ".")
+    veridag_dir = home / ".veridag"
+    seats_file = veridag_dir / "consortium-seats.json"
+    usdv_file = veridag_dir / "usdv-state.json"
+
+    # 1. Sync consortium seats
+    if seats_file.exists():
+        try:
+            with open(seats_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            seats = data.get("seats", {})
+            for node_id, seat in seats.items():
+                member = seat.get("member", "Unknown Member")
+                tier = seat.get("tier", "Consortium Tier 1 ($250k/yr)")
+                annual_fee = float(seat.get("annual_fee", 250000.0))
+                now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                renewal_str = f"{datetime.now(timezone.utc).year + 1}-12-31"
+                register_validator_seat(
+                    conn,
+                    node_id=node_id,
+                    consortium_member=member,
+                    tier=tier,
+                    annual_fee_usd=annual_fee,
+                    effective_date=now_str,
+                    renewal_date=renewal_str,
+                    status=seat.get("status", "ACTIVE"),
+                )
+                record_revenue_event(
+                    conn,
+                    event_id=f"seat-contract-{node_id}",
+                    stream="validator_license",
+                    counterparty=member,
+                    gross_usd=annual_fee,
+                    protocol_net_usd=annual_fee,
+                    notes=f"Consortium Validator License: {tier} (KMS: {seat.get('kms_uri', 'N/A')})",
+                )
+                print(f"[SYNC] Synchronized validator seat: {node_id} ({member}) -> ${annual_fee:,.2f} ARR")
+        except Exception as err:
+            print(f"[WARN] Failed to read consortium seats from {seats_file}: {err}", file=sys.stderr)
+
+    # 2. Sync USDV state
+    if usdv_file.exists():
+        try:
+            with open(usdv_file, "r", encoding="utf-8") as f:
+                usdv = json.load(f)
+            tbills = float(usdv.get("tbills", 0))
+            cash = float(usdv.get("cash", 0))
+            repo = float(usdv.get("repo", 0))
+            total_reserves = tbills + cash + repo
+
+            today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            if total_reserves > 0:
+                record_daily_float_yield(
+                    conn,
+                    period_date=today_str,
+                    total_usdv_reserve=total_reserves,
+                    apy=0.0450,
+                )
+                print(f"[SYNC] Recorded daily Treasury float yield on ${total_reserves:,.2f} USDV reserve at 4.50% APY")
+
+            accounts = usdv.get("accounts", {})
+            treasury_entry = accounts.get("treasury")
+            if treasury_entry:
+                treasury_bal_micro = float(treasury_entry[0])
+                treasury_bal_usd = treasury_bal_micro / 1_000_000.0
+                if treasury_bal_usd > 0:
+                    record_revenue_event(
+                        conn,
+                        event_id=f"treasury-clearing-accumulated-{today_str}",
+                        stream="trade_clearing",
+                        counterparty="USMCA Freight & AI Agent Clearing Protocol Net (60%)",
+                        gross_usd=treasury_bal_usd / 0.60,
+                        protocol_net_usd=treasury_bal_usd,
+                        notes=f"Settler Reconciliation State Root: {usdv.get('last_state_root', '')}",
+                    )
+                    print(f"[SYNC] Recorded on-chain clearing protocol net revenue: ${treasury_bal_usd:,.4f} USD")
+        except Exception as err:
+            print(f"[WARN] Failed to read USDV state from {usdv_file}: {err}", file=sys.stderr)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="VeriDAG to Revenue OS Sync Utility"
@@ -312,6 +393,11 @@ def main() -> int:
         "--rpc-url",
         default=DEFAULT_RPC_URL,
         help=f"Node RPC URL (default: {DEFAULT_RPC_URL})",
+    )
+    parser.add_argument(
+        "--sync-cli",
+        action="store_true",
+        help="Sync on-chain states and consortium contracts from local CLI state into database",
     )
     parser.add_argument(
         "--summary",
@@ -351,7 +437,10 @@ def main() -> int:
         print(f"[ERROR] Could not connect to revenue database at {args.db_path}: {err}", file=sys.stderr)
         return 1
 
-    if args.summary:
+    if args.sync_cli:
+        sync_from_cli_state(conn)
+
+    if args.summary or args.sync_cli:
         print_revenue_summary(conn)
 
     conn.close()
