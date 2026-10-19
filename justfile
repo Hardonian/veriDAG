@@ -107,13 +107,16 @@ site-dev:
 site-build:
     cd site; npm run build
 
-# Run TypeScript SDK conformance tests
+# Run TypeScript SDK conformance tests and verify packaging
 ts-test:
     cd sdks/typescript; npm test
+    cd sdks/typescript; npm run build
+    cd sdks/typescript; npm run verify-package
 
-# Run Python SDK conformance tests
+# Run Python SDK conformance tests and verify packaging
 py-test:
     cd sdks/python; uv run python -m unittest discover -s tests
+    cd sdks/python; uv build
 
 # Full local pre-release gate. Docker soak and fuzz remain explicit because they are long-running.
 release-gate: check vectors audit formal solidity slither industry ts-test py-test site-build

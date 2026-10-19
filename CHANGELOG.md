@@ -6,6 +6,20 @@ software version (see `protocol/specification/17-upgrades.md`).
 
 ## [Unreleased]
 
+### Security
+
+- Resolved 19 upstream security advisories across workspace dependencies:
+  - Upgraded `wasmtime` to 49.0.3, resolving RUSTSEC-2026-0353 through RUSTSEC-2026-0364.
+  - Upgraded `rustls` to 0.23.46, resolving RUSTSEC-2026-0346 through RUSTSEC-2026-0349.
+  - Upgraded `quinn-proto` to 0.11.19, resolving RUSTSEC-2026-0338, RUSTSEC-2026-0340, and RUSTSEC-2026-0343.
+- Both `cargo deny check` and `cargo audit` now pass with zero vulnerabilities.
+
+### Quality & Toolchain
+
+- Added repository `.gitattributes` to enforce canonical LF line endings across all platforms, ensuring deterministic cross-language hashing and Foundry formatting compliance on Windows.
+- Extended SDK verification in `justfile`, `scripts/publish-sdks.ps1`, and `scripts/publish-sdks.sh` to compile TypeScript declarations, test package entrypoint imports, and build wheel/sdist packages.
+- Aligned builder Rust toolchain in `Dockerfile` to 1.96-bookworm matching `rust-toolchain.toml`.
+
 ## [1.0.0] - 2026-10-14
 
 Stable reference implementation release covering the numbered protocol milestones, production Next.js site portal, and full multi-language SDK distribution.
