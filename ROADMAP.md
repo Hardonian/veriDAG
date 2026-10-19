@@ -182,6 +182,15 @@ the Hardonian Sovereign AI Stack and Settler reconciliation engine. Native objec
 reconciliation proofpack state anchoring, and cross-repo interoperability with MissionLedger,
 ReadyLayer, nlsqlc, mcpwall, and TokenGoblin. Normative spec 22.
 
+## Phase 27 — Commercial Revenue Operations & Enterprise Settlement (v1.1.0 — IN PROGRESS)
+
+`veridag-node`, `veridag-cli`, `revenue-os`: Direct monetization and enterprise cash-flow generation:
+1. **Revenue OS Live Connective Pipeline**: Real-time SQLite telemetry sync emitting transaction settlement fees, validator license subscriptions, and float yield directly into `/home/scott/ai-lab/revenue-os/revenue-os.db`.
+2. **USMCA Commercial Trade Pilot**: Activation of the 90-day freight invoice clearing pilot clearing $5M–$15M USDV via Settler dual-leg reconciliation (`SETTLER_ANCHOR = 5`) with a 1 bps protocol surcharge.
+3. **Hardonian AI Agent Compute Metering**: Real-time micro-metering ($10⁻⁶ USDV) across TokenGoblin, Settler, and MissionLedger for autonomous agent swarm missions and tool call settlements.
+4. **Phase 23 Production Cloud KMS/HSM**: AWS KMS, GCP Cloud KMS, and PKCS#11 hardware security module signers graduating Phase 23 for institutional bank validator deployments.
+5. **Consortium Member Licensing ($250k/yr)**: Onboarding initial 4 to 8 institutional member nodes with dynamic weighted committee governance and staking yield distribution.
+
 ## Release status
 
 Pre-GA. The numbered phases above record protocol and reference-implementation

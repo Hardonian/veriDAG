@@ -10,6 +10,7 @@ const phases = [
   { n: "23", t: "Cloud KMS and HSM", d: "Fail-closed signer interface. Reviewed AWS, GCP, Azure, and PKCS#11 provider implementations remain future work.", status: "Interface only" },
   { n: "24–26", t: "Assets, Bitcoin, and application adapters", d: "Multi-asset types, Bitcoin verification primitives, and application-specific codecs. Production chain operations remain experimental.", status: "Experimental" },
   { n: "27", t: "Cross-industry evidence packs", d: "Bounded adapters for CloudEvents, GS1 EPCIS, HL7 FHIR, OPC UA, W3C VC, and ISO 20022 with privacy-preserving anchors.", status: "Beta" },
+  { n: "v1.1", t: "Commercial Revenue Operations", d: "Direct Revenue OS sync, USMCA invoice clearing pilot ($5M–$15M), AI agent micro-metering, and consortium validator seat licensing.", status: "In progress" },
   { n: "GA gates", t: "Independent assurance and operations", d: "External security audit, multi-region fault campaign, recovery drills, performance envelopes, support ownership, and deployment-specific compliance approval.", status: "Required" },
 ];
 
@@ -17,6 +18,7 @@ const colorByStatus: Record<string, string> = {
   Beta: "var(--accent-emerald-bright)",
   Experimental: "#fbbf24",
   "Interface only": "var(--accent-violet-bright)",
+  "In progress": "var(--accent-cyan-bright)",
   Required: "#fb7185",
 };
 

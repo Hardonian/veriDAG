@@ -87,6 +87,10 @@ slither:
 industry:
     {{python}} scripts/validate-industry-packs.py
 
+# Test and verify Revenue OS synchronization
+revenue:
+    {{python}} scripts/revenue-sync.py --test
+
 # Hot-path benchmark suite
 bench:
     cargo bench -p veridag-qa
