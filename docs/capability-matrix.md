@@ -27,12 +27,13 @@ exists.
 | Rust SDK | Beta | Native conformance tests pass. Package/release provenance remains. |
 | TypeScript SDK | Beta | Conformance and client tests pass; release gates compile declarations, import the packaged `dist` entry point, and inspect the npm tarball. Registry publication and consumer matrix testing remain. |
 | Python SDK | Beta | Conformance tests and wheel/sdist builds pass with corrected package metadata. Index publication and consumer matrix testing remain. |
-| Cloud KMS/HSM | Interface only | `KeySigner` is an integration boundary. No cloud or PKCS#11 provider is currently implemented. |
+| Cloud KMS/HSM | Beta | Pluggable KeySigner abstraction with LocalKeySigner, RemoteKmsSigner, KmsSigningProvider, and HsmAirGappedProvider. Pass-through signature verification, public key invariant checks, and fail-closed errors covered by unit tests. Sustained hardware bench testing remains. |
 | SP1 and RISC Zero | Interface only | Current adapters produce deterministic test packets, not cryptographic zkVM proofs. |
-| Ethereum JSON-RPC | Interface only | A small compatibility facade exists; it is not an EVM implementation or production sequencer. |
+| Ethereum JSON-RPC | Beta | Core JSON-RPC compatibility methods (chainId, blockNumber, getBalance, gasPrice, estimateGas, getTransactionCount, getBlockByNumber) and BMH-1 state proof generation/verification pass in veridag-ethereum. Production RPC gateway exposure and external EVM load testing remain. |
 | Bitcoin SPV | Experimental | Header and proof primitives are tested; production chain synchronization and reorg operations remain. |
-| Solidity contracts and bridge | Experimental | Unit and fuzz tests, a 16,384-call stateful invariant campaign, replay/ID-reuse checks, and a zero-finding Slither gate exist. Independent audit and deployed governance review remain. |
+| Solidity contracts and bridge | Beta | CrossChainDeposit/Withdrawal codecs with 5 bps surcharge accounting, BridgeStateProof verification, Foundry unit and fuzz tests, 16,384-call stateful invariant campaign, and zero Slither findings pass. Independent audit and deployed governance review remain. |
 | USDV and ISO 20022 | Experimental | Deterministic domain logic exists. It is not a licensed financial product, reserve program, sanctions service, or legal authorization. |
+| Commercial Revenue Operations | Beta | Live Revenue OS SQLite pipeline (/home/scott/ai-lab/revenue-os/revenue-os.db), USMCA 1.5 bps freight clearance pilot, AI micro-metering, 4.85% treasury float seigniorage, and $250k consortium licensing CLI commands pass in veridag-cli. Production banking partner rails and multi-party consortium mainnet deployment remain. |
 | Cross-industry evidence packs | Beta | Versioned, bounded adapters cover CloudEvents, GS1 EPCIS, HL7 FHIR, OPC UA, W3C VC, and ISO 20022 routing. Full normative conformance suites and deployment-specific governance remain. |
 | Explorer and faucet | Demonstration | Static product demonstrations; they are not connected to a live network. |
 

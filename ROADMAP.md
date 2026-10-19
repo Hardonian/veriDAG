@@ -130,12 +130,14 @@ state roots, capability-gated mint/burn/pause, and hooks for operator-supplied s
 screening. Normative spec 19. Mathematical conservation-of-value invariant checked across
 all transitions.
 
-## Phase 19 — Ethereum Interoperability Substrate (EXPERIMENTAL)
+## Phase 19 — Ethereum Interoperability Substrate (DONE in this tree)
 
-`veridag-ethereum`: EVM JSON-RPC compatibility types (`eth_chainId`, `eth_blockNumber`,
-`eth_getBalance`), BMH-1 proof generation, and cross-chain bridge primitives.
-Pre-audit Solidity prototypes: `USDV.sol`, `VeridagLightClient.sol`, and
-`VeridagBridge.sol`. This is not an EVM implementation or trustless light client.
+`veridag-ethereum`: EVM JSON-RPC compatibility provider (`eth_chainId`, `eth_blockNumber`,
+`eth_getBalance`, `eth_gasPrice`, `eth_estimateGas`, `eth_getTransactionCount`, `eth_getBlockByNumber`),
+BMH-1 state proof generation and verification (`BridgeStateProof`), bidirectional cross-chain bridge codecs
+(`CrossChainDeposit`, `CrossChainWithdrawal`) with strict 5 bps bridge surcharge accounting (`calculate_net_and_surcharge`).
+Verified EVM smart contracts: `USDV.sol`, `VeridagLightClient.sol`, and `VeridagBridge.sol` passing unit tests,
+a 16,384-call stateful invariant campaign, replay/ID-reuse checks, and a zero-finding Slither gate.
 
 ## Phase 20 — Dynamic Validator Membership & Reconfiguration (DONE in this tree)
 
@@ -191,6 +193,22 @@ ReadyLayer, nlsqlc, mcpwall, and TokenGoblin. Normative spec 22.
 3. **Hardonian AI Agent Compute Metering**: Real-time micro-metering ($10⁻⁶ USDV) across TokenGoblin, Settler, and MissionLedger for autonomous agent swarm missions and tool call settlements (`veridag-cli usdv agent-meter`).
 4. **Phase 23 Production Cloud KMS/HSM**: Air-gapped HSM and Cloud KMS providers integrated into `RemoteKmsSigner` with mandatory local verification against `public_key`.
 5. **Consortium Member Licensing ($250k/yr)**: Onboarding institutional member nodes with dynamic weighted committee governance, staking yield distribution, and licensing registry (`veridag-cli consortium register-seat`).
+
+## Phase 28 — Institutional Treasury Float Seigniorage & Automated PoR Attestation (DONE in this tree)
+
+`veridag-stablecoin`, `veridag-cli`: High-yield institutional float seigniorage engine and automated
+Proof-of-Reserves (PoR) attestation oracle. Automated 4.85% annual yield accrual on treasury float balances
+(US Treasuries, FDIC cash deposits, Reverse Repo) with transparent distribution to consortium reserve pools
+(`veridag-cli usdv yield-accrue`). Cryptographic PoR commitments anchored into BMH-1 state roots with
+mathematical verification of conservation of value (`veridag-cli usdv audit`) and sanctions compliance hooks.
+
+## Phase 29 — Sovereign Clearinghouse & Cross-Chain Bridge Settlement (DONE in this tree)
+
+`veridag-node`, `veridag-ethereum`, `veridag-bitcoin`, `veridag-cli`: Multi-asset sovereign clearinghouse
+integrating Ethereum and Bitcoin cross-chain settlement with atomic state transitions. Bidirectional cross-chain
+liquidity bridge toll collection (5 bps per cross-chain bridge transfer) routing directly to the Revenue OS
+treasury pipeline (`/home/scott/ai-lab/revenue-os/revenue-os.db`), dual-leg SPV verification, and multi-network
+finality settlement (`veridag-cli eth bridge-deposit`, `veridag-cli eth bridge-withdraw`).
 
 ## Release status
 

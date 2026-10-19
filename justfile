@@ -123,5 +123,5 @@ py-test:
     cd sdks/python; uv build
 
 # Full local pre-release gate. Docker soak and fuzz remain explicit because they are long-running.
-release-gate: check vectors audit formal solidity slither industry ts-test py-test site-build
+release-gate: check vectors audit formal solidity slither industry revenue ts-test py-test site-build
     @echo "release-gate: all checks passed"
