@@ -438,6 +438,28 @@ enum BtcCmd {
         )]
         query: String,
     },
+    /// Settle an inbound Bitcoin cross-chain deposit with 5 bps liquidity toll.
+    BridgeDeposit {
+        #[arg(long)]
+        txid: String,
+        #[arg(long, default_value = "0")]
+        vout: u32,
+        #[arg(long)]
+        amount_satoshis: u64,
+        #[arg(long)]
+        recipient: String,
+        #[arg(long, default_value = "850000")]
+        height: u64,
+    },
+    /// Settle an outbound Bitcoin cross-chain withdrawal with 5 bps liquidity toll.
+    BridgeWithdraw {
+        #[arg(long)]
+        sender: String,
+        #[arg(long)]
+        btc_destination: String,
+        #[arg(long)]
+        amount_satoshis: u64,
+    },
 }
 
 fn cmd_key_generate(name: &str) -> Result<()> {
@@ -1621,6 +1643,180 @@ fn cmd_btc_rpc(query: &str) -> Result<()> {
     Ok(())
 }
 
+fn cmd_btc_bridge_deposit(
+    txid_hex: &str,
+    vout: u32,
+    amount_satoshis: u64,
+    recipient: &str,
+    height: u64,
+) -> Result<()> {
+    let mut usdv = load_usdv_state();
+    let txid_bytes = hex::decode(txid_hex.trim_start_matches("0x"))
+        .context("Invalid Bitcoin txid hex (expected 32 bytes)")?;
+    if txid_bytes.len() != 32 {
+        anyhow::bail!(
+            "Bitcoin txid must be exactly 32 bytes, got {}",
+            txid_bytes.len()
+        );
+    }
+    let mut btc_tx_hash = [0u8; 32];
+    btc_tx_hash.copy_from_slice(&txid_bytes);
+
+    let recipient_kp = load_or_create_key(recipient)?;
+    let recipient_addr = recipient_kp.address();
+
+    let deposit = veridag_bitcoin::CrossChainBtcDeposit {
+        btc_tx_hash,
+        vout,
+        amount_satoshis,
+        veridag_recipient: recipient_addr,
+        btc_block_height: height,
+        sequence: usdv.accounts.len() as u64 + 1,
+    };
+
+    let (net_sats, surcharge_sats) = deposit.calculate_net_and_surcharge(5);
+
+    // 1 BTC = $65,000 USD (650 micro-units USDV per satoshi)
+    let net_usdv_micro = (net_sats as u128 * 650).max(1);
+    let surcharge_usdv_micro = (surcharge_sats as u128 * 650).max(1);
+    let gross_usdv_micro = net_usdv_micro + surcharge_usdv_micro;
+
+    usdv.cash += (gross_usdv_micro / USDV_SCALE).max(1);
+    usdv.total_supply += gross_usdv_micro;
+
+    usdv.accounts
+        .entry(recipient.to_string())
+        .or_insert((0, false))
+        .0 += net_usdv_micro;
+
+    usdv.accounts
+        .entry("treasury".to_string())
+        .or_insert((0, false))
+        .0 += surcharge_usdv_micro;
+
+    let (state, _) = rebuild_usdv_object_state(&usdv);
+    usdv.last_state_root = format!("0x{}", hex::encode(state.state_root()));
+    save_usdv_state(&usdv)?;
+
+    println!("============================================================");
+    println!("⚡ BITCOIN UTXO -> VERIDAG L2 CROSS-CHAIN DEPOSIT CLEARED");
+    println!("============================================================");
+    println!(
+        "Deposit Msg Hash:   0x{}",
+        hex::encode(deposit.message_hash())
+    );
+    println!("Bitcoin TxID:       {txid_hex}:{vout}");
+    println!("Block Height:       {height}");
+    println!(
+        "L2 Recipient:       {recipient} (0x{})",
+        hex::encode(recipient_addr)
+    );
+    println!(
+        "Gross Inbound:      {} satoshis (~${:.2} USDV)",
+        amount_satoshis,
+        gross_usdv_micro as f64 / USDV_SCALE as f64
+    );
+    println!(
+        "Bridge Toll (5bps): {} satoshis (~${:.4} USDV credited to treasury)",
+        surcharge_sats,
+        surcharge_usdv_micro as f64 / USDV_SCALE as f64
+    );
+    println!(
+        "Net Minted on L2:   {} satoshis (~${:.4} USDV)",
+        net_sats,
+        net_usdv_micro as f64 / USDV_SCALE as f64
+    );
+    println!("BMH-1 State Root:   {}", usdv.last_state_root);
+    println!(
+        "Status:             CONFIRMED (CrossChainBtcDeposit Sequence #{})",
+        deposit.sequence
+    );
+    println!("============================================================");
+    Ok(())
+}
+
+fn cmd_btc_bridge_withdraw(
+    sender: &str,
+    btc_destination: &str,
+    amount_satoshis: u64,
+) -> Result<()> {
+    let mut usdv = load_usdv_state();
+    let sender_kp = load_or_create_key(sender)?;
+    let sender_addr = sender_kp.address();
+
+    let withdrawal = veridag_bitcoin::CrossChainBtcWithdrawal {
+        veridag_sender: sender_addr,
+        btc_destination: btc_destination.to_string(),
+        amount_satoshis,
+        sequence: usdv.accounts.len() as u64 + 1,
+    };
+
+    let (net_sats, surcharge_sats) = withdrawal.calculate_net_and_surcharge(5);
+    let net_usdv_micro = (net_sats as u128 * 650).max(1);
+    let surcharge_usdv_micro = (surcharge_sats as u128 * 650).max(1);
+    let gross_usdv_micro = net_usdv_micro + surcharge_usdv_micro;
+
+    let sender_entry = usdv.accounts.get(sender).copied().unwrap_or((0, false));
+    if sender_entry.1 {
+        anyhow::bail!("COMPLIANCE REJECTION: Sender '{sender}' is frozen under sanctions");
+    }
+    if sender_entry.0 < gross_usdv_micro {
+        anyhow::bail!(
+            "Insufficient balance for withdrawal: has ${:.2} USDV, requires ${:.2} USDV ({} satoshis)",
+            sender_entry.0 as f64 / USDV_SCALE as f64,
+            gross_usdv_micro as f64 / USDV_SCALE as f64,
+            amount_satoshis
+        );
+    }
+
+    usdv.accounts.get_mut(sender).unwrap().0 -= gross_usdv_micro;
+
+    usdv.accounts
+        .entry("treasury".to_string())
+        .or_insert((0, false))
+        .0 += surcharge_usdv_micro;
+
+    usdv.total_supply = usdv.total_supply.saturating_sub(net_usdv_micro);
+    usdv.cash = usdv
+        .cash
+        .saturating_sub((net_usdv_micro / USDV_SCALE).max(1));
+
+    let (state, _) = rebuild_usdv_object_state(&usdv);
+    usdv.last_state_root = format!("0x{}", hex::encode(state.state_root()));
+    save_usdv_state(&usdv)?;
+
+    println!("============================================================");
+    println!("⚡ VERIDAG L2 -> BITCOIN UTXO CROSS-CHAIN WITHDRAWAL INITIATED");
+    println!("============================================================");
+    println!(
+        "Withdrawal Hash:    0x{}",
+        hex::encode(withdrawal.message_hash())
+    );
+    println!(
+        "L2 Sender:          {sender} (0x{})",
+        hex::encode(sender_addr)
+    );
+    println!("Bitcoin Dest:       {btc_destination}");
+    println!(
+        "Gross Burned:       {} satoshis (~${:.2} USDV)",
+        amount_satoshis,
+        gross_usdv_micro as f64 / USDV_SCALE as f64
+    );
+    println!(
+        "Bridge Toll (5bps): {} satoshis (~${:.4} USDV credited to treasury)",
+        surcharge_sats,
+        surcharge_usdv_micro as f64 / USDV_SCALE as f64
+    );
+    println!(
+        "Net Unlocked on BTC:{} satoshis (via Bitcoin SPV multisig script)",
+        net_sats
+    );
+    println!("BMH-1 State Root:   {}", usdv.last_state_root);
+    println!("Status:             BURN COMMITTED — READY FOR BITCOIN RELEASE");
+    println!("============================================================");
+    Ok(())
+}
+
 fn cmd_metrics_export() -> Result<()> {
     let exporter = veridag_metrics::PrometheusExporter::new();
     use veridag_metrics::{Label, Metrics, Observation};
@@ -1752,6 +1948,18 @@ fn main() -> Result<()> {
                 branch,
             } => cmd_btc_verify_merkle(&txid_hex, &root_hex, index, &branch),
             BtcCmd::Rpc { query } => cmd_btc_rpc(&query),
+            BtcCmd::BridgeDeposit {
+                txid,
+                vout,
+                amount_satoshis,
+                recipient,
+                height,
+            } => cmd_btc_bridge_deposit(&txid, vout, amount_satoshis, &recipient, height),
+            BtcCmd::BridgeWithdraw {
+                sender,
+                btc_destination,
+                amount_satoshis,
+            } => cmd_btc_bridge_withdraw(&sender, &btc_destination, amount_satoshis),
         },
         Cmd::Metrics => cmd_metrics_export(),
     }

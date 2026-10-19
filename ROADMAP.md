@@ -210,6 +210,21 @@ liquidity bridge toll collection (5 bps per cross-chain bridge transfer) routing
 treasury pipeline (`/home/scott/ai-lab/revenue-os/revenue-os.db`), dual-leg SPV verification, and multi-network
 finality settlement (`veridag-cli eth bridge-deposit`, `veridag-cli eth bridge-withdraw`).
 
+## Phase 30 — Sovereign Subnet Orchestration & Dedicated Enterprise Rails (DONE in this tree)
+
+`veridag-consensus`, `veridag-wasm-runtime`, `veridag-cli`: Sovereign private and consortium subnet
+orchestration framework supporting dedicated execution lanes, custom capability-scoped permissions,
+deterministic fuel metering, and enterprise clearing rules. Native institutional rail licensing ($1,000,000/yr
+per subnet) for central banks, multilateral trade corridors, and dedicated settlement networks.
+
+## Phase 31 — Bitcoin Native SPV Clearinghouse & Cross-Chain Settlement (DONE in this tree)
+
+`veridag-bitcoin`, `veridag-cli`: Full Bitcoin Simplified Payment Verification (SPV) client and cross-chain
+clearinghouse. Double-SHA256 Merkle inclusion proofs, 80-byte header verification under compact nBits PoW targets,
+continuous SPV chain tracking (`BtcSpvHeaderTracker`), Bitcoin JSON-RPC provider, and bidirectional UTXO
+deposit/withdrawal codecs (`CrossChainBtcDeposit`, `CrossChainBtcWithdrawal`) with strict 5 bps bridge surcharge
+accounting routing directly to the protocol treasury (`veridag-cli btc bridge-deposit`, `veridag-cli btc bridge-withdraw`).
+
 ## Release status
 
 Pre-GA. The numbered phases above record protocol and reference-implementation

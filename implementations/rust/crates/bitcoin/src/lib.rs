@@ -253,6 +253,23 @@ impl Decode for CrossChainBtcDeposit {
     }
 }
 
+impl CrossChainBtcDeposit {
+    /// Compute unique hash identifier for this Bitcoin deposit message.
+    pub fn message_hash(&self) -> [u8; 32] {
+        let mut enc = Encoder::new();
+        self.encode(&mut enc);
+        hash256(&enc.into_bytes())
+    }
+
+    /// Calculate net satoshis credited and protocol bridge liquidity surcharge.
+    /// Default fee is 5 bps (0.05% = 5 / 10,000).
+    pub fn calculate_net_and_surcharge(&self, fee_bps: u64) -> (u64, u64) {
+        let surcharge = (self.amount_satoshis * fee_bps) / 10_000;
+        let net = self.amount_satoshis.saturating_sub(surcharge);
+        (net, surcharge)
+    }
+}
+
 /// Cross-chain Bitcoin withdrawal message releasing funds back to a native Bitcoin address.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct CrossChainBtcWithdrawal {
@@ -283,6 +300,23 @@ impl Decode for CrossChainBtcWithdrawal {
             amount_satoshis: d.u64()?,
             sequence: d.u64()?,
         })
+    }
+}
+
+impl CrossChainBtcWithdrawal {
+    /// Compute unique hash identifier for this Bitcoin withdrawal message.
+    pub fn message_hash(&self) -> [u8; 32] {
+        let mut enc = Encoder::new();
+        self.encode(&mut enc);
+        hash256(&enc.into_bytes())
+    }
+
+    /// Calculate net satoshis released on Bitcoin and protocol bridge liquidity surcharge.
+    /// Default fee is 5 bps (0.05% = 5 / 10,000).
+    pub fn calculate_net_and_surcharge(&self, fee_bps: u64) -> (u64, u64) {
+        let surcharge = (self.amount_satoshis * fee_bps) / 10_000;
+        let net = self.amount_satoshis.saturating_sub(surcharge);
+        (net, surcharge)
     }
 }
 
@@ -595,5 +629,34 @@ mod tests {
         assert!(
             resp_hash.contains("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f")
         );
+    }
+
+    #[test]
+    fn test_btc_cross_chain_surcharge_calculation() {
+        let deposit = CrossChainBtcDeposit {
+            btc_tx_hash: [0x55; 32],
+            vout: 1,
+            amount_satoshis: 100_000_000, // 1 BTC
+            veridag_recipient: [0x77; 32],
+            btc_block_height: 850_000,
+            sequence: 10,
+        };
+        let (net, surcharge) = deposit.calculate_net_and_surcharge(5); // 5 bps
+        assert_eq!(surcharge, 50_000); // 0.0005 BTC
+        assert_eq!(net, 99_950_000);
+        assert_eq!(net + surcharge, deposit.amount_satoshis);
+        assert_ne!(deposit.message_hash(), [0u8; 32]);
+
+        let withdrawal = CrossChainBtcWithdrawal {
+            veridag_sender: [0x88; 32],
+            btc_destination: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh".to_string(),
+            amount_satoshis: 50_000_000, // 0.5 BTC
+            sequence: 11,
+        };
+        let (net_w, surcharge_w) = withdrawal.calculate_net_and_surcharge(5);
+        assert_eq!(surcharge_w, 25_000);
+        assert_eq!(net_w, 49_975_000);
+        assert_eq!(net_w + surcharge_w, withdrawal.amount_satoshis);
+        assert_ne!(withdrawal.message_hash(), [0u8; 32]);
     }
 }
