@@ -26,17 +26,21 @@ echo "  [PASS] Rust SDK conformance verified."
 echo "[2/3] Verifying TypeScript SDK conformance..."
 cd "$ROOT_DIR/sdks/typescript"
 npm test
-echo "  [PASS] TypeScript SDK conformance verified."
+npm run build
+npm run verify-package
+echo "  [PASS] TypeScript SDK conformance, build, and package verified."
 
 # 3. Python SDK
 echo "[3/3] Verifying Python SDK conformance & HTTP client..."
 cd "$ROOT_DIR/sdks/python"
 if command -v uv >/dev/null 2>&1; then
     uv run python -m unittest discover -s tests
+    uv build
 else
     python3 -m unittest discover -s tests
+    python3 -m build
 fi
-echo "  [PASS] Python SDK conformance and client verified."
+echo "  [PASS] Python SDK conformance, client, and distribution build verified."
 
 
 echo "================================================================="

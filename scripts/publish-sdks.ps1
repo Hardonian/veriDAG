@@ -26,7 +26,9 @@ Write-Host "[2/3] Verifying TypeScript SDK conformance & HTTP client..." -Foregr
 Push-Location "$RootDir\sdks\typescript"
 try {
     npm test
-    Write-Host "  [PASS] TypeScript SDK conformance verified." -ForegroundColor Green
+    npm run build
+    npm run verify-package
+    Write-Host "  [PASS] TypeScript SDK conformance, build, and package verified." -ForegroundColor Green
 } finally {
     Pop-Location
 }
@@ -37,10 +39,12 @@ Push-Location "$RootDir\sdks\python"
 try {
     if (Get-Command uv -ErrorAction SilentlyContinue) {
         uv run python -m unittest discover -s tests
+        uv build
     } else {
         python -m unittest discover -s tests
+        python -m build
     }
-    Write-Host "  [PASS] Python SDK conformance and client verified." -ForegroundColor Green
+    Write-Host "  [PASS] Python SDK conformance, client, and distribution build verified." -ForegroundColor Green
 } finally {
     Pop-Location
 }

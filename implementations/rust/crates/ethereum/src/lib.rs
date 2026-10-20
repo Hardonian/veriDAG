@@ -92,6 +92,14 @@ impl CrossChainDeposit {
         self.encode(&mut enc);
         hash(ETH_BRIDGE_DOMAIN, &enc.into_bytes())
     }
+
+    /// Calculate the net minted USDV amount and protocol bridge liquidity surcharge.
+    /// Default fee is 5 bps (0.05% = 5 / 10,000).
+    pub fn calculate_net_and_surcharge(&self, fee_bps: u64) -> (u128, u128) {
+        let surcharge = (self.amount * fee_bps as u128) / 10_000;
+        let net = self.amount.saturating_sub(surcharge);
+        (net, surcharge)
+    }
 }
 
 /// A cross-chain withdrawal message initiated on Veridag for release on Ethereum L1.
@@ -137,6 +145,14 @@ impl CrossChainWithdrawal {
         let mut enc = Encoder::new();
         self.encode(&mut enc);
         hash(ETH_BRIDGE_DOMAIN, &enc.into_bytes())
+    }
+
+    /// Calculate the net released L1 amount and protocol bridge liquidity surcharge.
+    /// Default fee is 5 bps (0.05% = 5 / 10,000).
+    pub fn calculate_net_and_surcharge(&self, fee_bps: u64) -> (u128, u128) {
+        let surcharge = (self.amount * fee_bps as u128) / 10_000;
+        let net = self.amount.saturating_sub(surcharge);
+        (net, surcharge)
     }
 }
 
@@ -416,6 +432,44 @@ impl EvmJsonRpcProvider {
                 error: None,
                 id,
             },
+            "eth_gasPrice" => JsonRpcResponse {
+                jsonrpc: "2.0".into(),
+                result: Some(serde_json::Value::String("0x1".into())),
+                error: None,
+                id,
+            },
+            "eth_estimateGas" => JsonRpcResponse {
+                jsonrpc: "2.0".into(),
+                result: Some(serde_json::Value::String("0x5208".into())),
+                error: None,
+                id,
+            },
+            "eth_getTransactionCount" => JsonRpcResponse {
+                jsonrpc: "2.0".into(),
+                result: Some(serde_json::Value::String("0x0".into())),
+                error: None,
+                id,
+            },
+            "eth_getBlockByNumber" => {
+                let block_hex = format!("0x{:x}", latest_sequence);
+                let root_hex = format!("0x{}", hex::encode(state.state_root()));
+                let block_obj = serde_json::json!({
+                    "number": block_hex,
+                    "hash": root_hex,
+                    "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                    "stateRoot": root_hex,
+                    "transactions": [],
+                    "timestamp": "0x66000000",
+                    "gasLimit": "0x1fffffffffffff",
+                    "gasUsed": "0x0"
+                });
+                JsonRpcResponse {
+                    jsonrpc: "2.0".into(),
+                    result: Some(block_obj),
+                    error: None,
+                    id,
+                }
+            }
             _ => JsonRpcResponse {
                 jsonrpc: "2.0".into(),
                 result: None,
@@ -527,6 +581,41 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("Veridag"));
+
+        // 4. eth_gasPrice
+        let req_gas = r#"{"jsonrpc":"2.0","method":"eth_gasPrice","id":4}"#;
+        let resp_gas = provider.handle_request(req_gas, &state, 16);
+        let parsed_gas: JsonRpcResponse = serde_json::from_str(&resp_gas).unwrap();
+        assert_eq!(parsed_gas.result.unwrap(), "0x1");
+
+        // 5. eth_estimateGas
+        let req_est = r#"{"jsonrpc":"2.0","method":"eth_estimateGas","id":5}"#;
+        let resp_est = provider.handle_request(req_est, &state, 16);
+        let parsed_est: JsonRpcResponse = serde_json::from_str(&resp_est).unwrap();
+        assert_eq!(parsed_est.result.unwrap(), "0x5208");
+
+        // 6. eth_getBlockByNumber
+        let req_blk = r#"{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest", false],"id":6}"#;
+        let resp_blk = provider.handle_request(req_blk, &state, 128);
+        let parsed_blk: JsonRpcResponse = serde_json::from_str(&resp_blk).unwrap();
+        assert_eq!(parsed_blk.result.unwrap()["number"], "0x80");
+    }
+
+    #[test]
+    fn test_cross_chain_surcharge_calculation() {
+        let dep = CrossChainDeposit {
+            l1_sender: EthAddress([0x11; 20]),
+            l2_recipient: [0x22; 32],
+            amount: 100_000 * 1_000_000,
+            l1_block_number: 21_000_000,
+            l1_tx_hash: EthTxHash([0x33; 32]),
+            sequence: 101,
+        };
+        // 5 bps = 0.05%
+        let (net, surcharge) = dep.calculate_net_and_surcharge(5);
+        assert_eq!(surcharge, 50 * 1_000_000);
+        assert_eq!(net, 99_950 * 1_000_000);
+        assert_eq!(net + surcharge, dep.amount);
     }
 
     #[test]

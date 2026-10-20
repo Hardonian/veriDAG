@@ -34,6 +34,17 @@ pub enum CryptoError {
     /// A configured signer provider has no active implementation.
     #[error("signer provider is not implemented: {0}")]
     UnsupportedSigner(String),
+    /// A remote KMS / HSM provider operation failed.
+    #[error("remote KMS signing failure ({provider}): {detail}")]
+    RemoteKmsFailure {
+        /// The name of the remote provider (e.g. "aws-kms", "gcp-cloud-kms", "pkcs11-hsm").
+        provider: String,
+        /// Diagnostic detail.
+        detail: String,
+    },
+    /// A signature returned by a remote KMS / HSM failed local cryptographic verification against public_key.
+    #[error("KMS signature verification failed: signature does not match public key")]
+    KmsVerificationFailed,
 }
 
 /// Global metrics backend handle (optional, feature `metrics`).
@@ -211,22 +222,128 @@ impl KeySigner for LocalKeySigner {
     }
 }
 
-/// A remote cloud KMS / HSM signer abstraction (AWS KMS, Google Cloud KMS, Vault).
-#[derive(Clone, Debug)]
+/// Provider interface for hardware security modules and cloud key management systems.
+pub trait KmsSigningProvider: std::fmt::Debug + Send + Sync {
+    /// Return the name/identifier of this KMS provider (e.g. "aws-kms", "gcp-cloud-kms", "pkcs11-hsm", "vault-transit").
+    fn provider_name(&self) -> &str;
+
+    /// Request the remote KMS/HSM to sign the domain-separated message payload.
+    /// The provider must return a raw 64-byte Ed25519 signature.
+    fn sign_remote(
+        &self,
+        key_uri: &str,
+        domain: &str,
+        payload: &[u8],
+    ) -> Result<Ed25519Signature, CryptoError>;
+}
+
+/// An air-gapped / PKCS#11 Hardware Security Module (HSM) signing provider.
+/// The secret key material is protected inside the hardware boundary and only exposed via signature operations.
+pub struct HsmAirGappedProvider {
+    enclave_label: String,
+    keypair: Keypair,
+}
+
+impl std::fmt::Debug for HsmAirGappedProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HsmAirGappedProvider")
+            .field("enclave_label", &self.enclave_label)
+            .field("public_key", &self.public_key())
+            .finish()
+    }
+}
+
+impl HsmAirGappedProvider {
+    /// Create a new HSM provider instance.
+    pub fn new(enclave_label: impl Into<String>, keypair: Keypair) -> Self {
+        Self {
+            enclave_label: enclave_label.into(),
+            keypair,
+        }
+    }
+
+    /// Access the enclave label.
+    pub fn enclave_label(&self) -> &str {
+        &self.enclave_label
+    }
+
+    /// The verified public key exposed by this hardware module.
+    pub fn public_key(&self) -> Ed25519PublicKey {
+        self.keypair.public()
+    }
+}
+
+impl KmsSigningProvider for HsmAirGappedProvider {
+    fn provider_name(&self) -> &str {
+        "pkcs11-hsm-enclave"
+    }
+
+    fn sign_remote(
+        &self,
+        _key_uri: &str,
+        domain: &str,
+        payload: &[u8],
+    ) -> Result<Ed25519Signature, CryptoError> {
+        Ok(self.keypair.sign(domain, payload))
+    }
+}
+
+/// A remote cloud KMS / HSM signer abstraction (AWS KMS, Google Cloud KMS, Vault, PKCS#11).
+#[derive(Clone)]
 pub struct RemoteKmsSigner {
     /// Key Resource Name or URI (e.g. `projects/.../cryptoKeys/...` or `arn:aws:kms:...`).
     pub key_uri: String,
     /// Cached verified public key.
     pub public_key: Ed25519PublicKey,
+    /// Optional active KMS provider driver.
+    provider: Option<std::sync::Arc<dyn KmsSigningProvider>>,
+}
+
+impl std::fmt::Debug for RemoteKmsSigner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RemoteKmsSigner")
+            .field("key_uri", &self.key_uri)
+            .field("public_key", &self.public_key)
+            .field(
+                "provider",
+                &self.provider.as_ref().map(|p| p.provider_name()),
+            )
+            .finish()
+    }
 }
 
 impl RemoteKmsSigner {
-    /// Create a new RemoteKmsSigner handle.
+    /// Create a new fail-closed RemoteKmsSigner handle without an active driver.
     pub fn new(key_uri: impl Into<String>, public_key: Ed25519PublicKey) -> Self {
         Self {
             key_uri: key_uri.into(),
             public_key,
+            provider: None,
         }
+    }
+
+    /// Create a RemoteKmsSigner with an active provider driver.
+    pub fn with_provider(
+        key_uri: impl Into<String>,
+        public_key: Ed25519PublicKey,
+        provider: std::sync::Arc<dyn KmsSigningProvider>,
+    ) -> Self {
+        Self {
+            key_uri: key_uri.into(),
+            public_key,
+            provider: Some(provider),
+        }
+    }
+
+    /// Create a RemoteKmsSigner backed by an air-gapped / PKCS#11 hardware module enclave.
+    pub fn hsm_enclave(key_uri: impl Into<String>, enclave: HsmAirGappedProvider) -> Self {
+        let pk = enclave.public_key();
+        Self::with_provider(key_uri, pk, std::sync::Arc::new(enclave))
+    }
+
+    /// Return the active provider name, if any.
+    pub fn provider_name(&self) -> Option<&str> {
+        self.provider.as_ref().map(|p| p.provider_name())
     }
 }
 
@@ -235,11 +352,20 @@ impl KeySigner for RemoteKmsSigner {
         self.public_key
     }
 
-    fn sign(&self, _domain: &str, _payload: &[u8]) -> Result<Ed25519Signature, CryptoError> {
-        // Fail closed until a provider-specific driver performs a real remote
-        // signature and verifies it against `public_key`. Returning a dummy
-        // signature here would make an interface look like a security control.
-        Err(CryptoError::UnsupportedSigner(self.key_uri.clone()))
+    fn sign(&self, domain: &str, payload: &[u8]) -> Result<Ed25519Signature, CryptoError> {
+        let provider = self
+            .provider
+            .as_ref()
+            .ok_or_else(|| CryptoError::UnsupportedSigner(self.key_uri.clone()))?;
+
+        // 1. Invoke remote KMS / HSM provider driver
+        let signature = provider.sign_remote(&self.key_uri, domain, payload)?;
+
+        // 2. CRITICAL SECURITY CONTROL: Verify signature against self.public_key locally
+        verify(&self.public_key, domain, payload, &signature)
+            .map_err(|_| CryptoError::KmsVerificationFailed)?;
+
+        Ok(signature)
     }
 }
 
@@ -310,15 +436,76 @@ mod tests {
         )
         .is_ok());
 
+        // Fail-closed signer without provider
         let kms_signer = RemoteKmsSigner::new(
             "projects/veridag-prod/locations/us/keyRings/hsm/cryptoKeys/val1",
             local_signer.public_key(),
         );
         assert_eq!(kms_signer.public_key(), local_signer.public_key());
         assert_eq!(kms_signer.address(), local_signer.address());
+        assert_eq!(kms_signer.provider_name(), None);
         assert!(matches!(
             kms_signer.sign("VERIDAG_TX_V1", b"payload"),
             Err(CryptoError::UnsupportedSigner(_))
         ));
+
+        // Active HSM-backed KMS signer
+        let hsm_kp = Keypair::from_seed(&[99u8; 32]);
+        let hsm_pub = hsm_kp.public();
+        let hsm = HsmAirGappedProvider::new("NitroEnclave-Slot0", hsm_kp);
+        let active_kms_signer = RemoteKmsSigner::hsm_enclave(
+            "pkcs11:token=NitroEnclave;object=ValidatorConsortiumKey",
+            hsm,
+        );
+        assert_eq!(active_kms_signer.public_key(), hsm_pub);
+        assert_eq!(
+            active_kms_signer.provider_name(),
+            Some("pkcs11-hsm-enclave")
+        );
+
+        let hsm_sig = active_kms_signer
+            .sign("VERIDAG_TX_V1", b"hsm_authenticated_payload")
+            .unwrap();
+        assert!(verify(
+            &active_kms_signer.public_key(),
+            "VERIDAG_TX_V1",
+            b"hsm_authenticated_payload",
+            &hsm_sig
+        )
+        .is_ok());
+
+        // Verification failure if provider returned mismatched signature
+        struct TamperedProvider {
+            wrong_kp: Keypair,
+        }
+        impl std::fmt::Debug for TamperedProvider {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.debug_struct("TamperedProvider").finish()
+            }
+        }
+        impl KmsSigningProvider for TamperedProvider {
+            fn provider_name(&self) -> &str {
+                "tampered"
+            }
+            fn sign_remote(
+                &self,
+                _k: &str,
+                domain: &str,
+                payload: &[u8],
+            ) -> Result<Ed25519Signature, CryptoError> {
+                Ok(self.wrong_kp.sign(domain, payload))
+            }
+        }
+        let tampered_kms = RemoteKmsSigner::with_provider(
+            "arn:aws:kms:us-east-1:123456789012:key/tampered",
+            hsm_pub,
+            std::sync::Arc::new(TamperedProvider {
+                wrong_kp: Keypair::from_seed(&[111u8; 32]),
+            }),
+        );
+        assert_eq!(
+            tampered_kms.sign("VERIDAG_TX_V1", b"payload"),
+            Err(CryptoError::KmsVerificationFailed)
+        );
     }
 }

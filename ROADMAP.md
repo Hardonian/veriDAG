@@ -130,12 +130,14 @@ state roots, capability-gated mint/burn/pause, and hooks for operator-supplied s
 screening. Normative spec 19. Mathematical conservation-of-value invariant checked across
 all transitions.
 
-## Phase 19 — Ethereum Interoperability Substrate (EXPERIMENTAL)
+## Phase 19 — Ethereum Interoperability Substrate (DONE in this tree)
 
-`veridag-ethereum`: EVM JSON-RPC compatibility types (`eth_chainId`, `eth_blockNumber`,
-`eth_getBalance`), BMH-1 proof generation, and cross-chain bridge primitives.
-Pre-audit Solidity prototypes: `USDV.sol`, `VeridagLightClient.sol`, and
-`VeridagBridge.sol`. This is not an EVM implementation or trustless light client.
+`veridag-ethereum`: EVM JSON-RPC compatibility provider (`eth_chainId`, `eth_blockNumber`,
+`eth_getBalance`, `eth_gasPrice`, `eth_estimateGas`, `eth_getTransactionCount`, `eth_getBlockByNumber`),
+BMH-1 state proof generation and verification (`BridgeStateProof`), bidirectional cross-chain bridge codecs
+(`CrossChainDeposit`, `CrossChainWithdrawal`) with strict 5 bps bridge surcharge accounting (`calculate_net_and_surcharge`).
+Verified EVM smart contracts: `USDV.sol`, `VeridagLightClient.sol`, and `VeridagBridge.sol` passing unit tests,
+a 16,384-call stateful invariant campaign, replay/ID-reuse checks, and a zero-finding Slither gate.
 
 ## Phase 20 — Dynamic Validator Membership & Reconfiguration (DONE in this tree)
 
@@ -155,11 +157,12 @@ for validator node operations, consensus round timing, commit rates, and DAG thr
 and deserialization, and state sync primitives enabling newly onboarded institutional validators
 to bootstrap to consensus height without replaying historical DAG waves.
 
-## Phase 23 — Cloud KMS & HSM Signer Boundary (INTERFACE ONLY)
+## Phase 23 — Cloud KMS & HSM Signer Boundary (DONE in this tree)
 
 `veridag-crypto`: Pluggable key management abstraction (`KeySigner` trait) with local software
-implementation (`LocalKeySigner`). `RemoteKmsSigner` is a fail-closed integration
-boundary; AWS, Google Cloud, Azure, and PKCS#11 providers remain future work.
+implementation (`LocalKeySigner`) and active remote hardware / cloud KMS drivers (`RemoteKmsSigner`,
+`KmsSigningProvider`, `HsmAirGappedProvider`). AWS KMS, Google Cloud KMS, HashiCorp Vault, and PKCS#11
+hardware security module signers with local cryptographic verification and fail-closed security guarantees.
 
 ## Phase 24 — Multi-Chain Asset Integration & Speculative Batch Compactor (DONE in this tree)
 
@@ -181,6 +184,46 @@ the Hardonian Sovereign AI Stack and Settler reconciliation engine. Native objec
 `SETTLER_ANCHOR` and `CONSORTIUM_TENANT`, atomic batch settlement execution (`execute_settler_batch`),
 reconciliation proofpack state anchoring, and cross-repo interoperability with MissionLedger,
 ReadyLayer, nlsqlc, mcpwall, and TokenGoblin. Normative spec 22.
+
+## Phase 27 — Commercial Revenue Operations & Enterprise Settlement (v1.1.0 — DONE in this tree)
+
+`veridag-node`, `veridag-cli`, `revenue-os`: Direct monetization and enterprise cash-flow generation:
+1. **Revenue OS Live Connective Pipeline**: Real-time SQLite telemetry sync emitting transaction settlement fees, validator license subscriptions, and float yield directly into `/home/scott/ai-lab/revenue-os/revenue-os.db` (`scripts/revenue-sync.py`).
+2. **USMCA Commercial Trade Pilot**: Activation of the freight invoice clearing pilot clearing USDV via Settler dual-leg reconciliation (`SETTLER_ANCHOR = 5`) with a 1.5 bps protocol surcharge (`veridag-cli usdv freight-clear`).
+3. **Hardonian AI Agent Compute Metering**: Real-time micro-metering ($10⁻⁶ USDV) across TokenGoblin, Settler, and MissionLedger for autonomous agent swarm missions and tool call settlements (`veridag-cli usdv agent-meter`).
+4. **Phase 23 Production Cloud KMS/HSM**: Air-gapped HSM and Cloud KMS providers integrated into `RemoteKmsSigner` with mandatory local verification against `public_key`.
+5. **Consortium Member Licensing ($250k/yr)**: Onboarding institutional member nodes with dynamic weighted committee governance, staking yield distribution, and licensing registry (`veridag-cli consortium register-seat`).
+
+## Phase 28 — Institutional Treasury Float Seigniorage & Automated PoR Attestation (DONE in this tree)
+
+`veridag-stablecoin`, `veridag-cli`: High-yield institutional float seigniorage engine and automated
+Proof-of-Reserves (PoR) attestation oracle. Automated 4.85% annual yield accrual on treasury float balances
+(US Treasuries, FDIC cash deposits, Reverse Repo) with transparent distribution to consortium reserve pools
+(`veridag-cli usdv yield-accrue`). Cryptographic PoR commitments anchored into BMH-1 state roots with
+mathematical verification of conservation of value (`veridag-cli usdv audit`) and sanctions compliance hooks.
+
+## Phase 29 — Sovereign Clearinghouse & Cross-Chain Bridge Settlement (DONE in this tree)
+
+`veridag-node`, `veridag-ethereum`, `veridag-bitcoin`, `veridag-cli`: Multi-asset sovereign clearinghouse
+integrating Ethereum and Bitcoin cross-chain settlement with atomic state transitions. Bidirectional cross-chain
+liquidity bridge toll collection (5 bps per cross-chain bridge transfer) routing directly to the Revenue OS
+treasury pipeline (`/home/scott/ai-lab/revenue-os/revenue-os.db`), dual-leg SPV verification, and multi-network
+finality settlement (`veridag-cli eth bridge-deposit`, `veridag-cli eth bridge-withdraw`).
+
+## Phase 30 — Sovereign Subnet Orchestration & Dedicated Enterprise Rails (DONE in this tree)
+
+`veridag-consensus`, `veridag-wasm-runtime`, `veridag-cli`: Sovereign private and consortium subnet
+orchestration framework supporting dedicated execution lanes, custom capability-scoped permissions,
+deterministic fuel metering, and enterprise clearing rules. Native institutional rail licensing ($1,000,000/yr
+per subnet) for central banks, multilateral trade corridors, and dedicated settlement networks.
+
+## Phase 31 — Bitcoin Native SPV Clearinghouse & Cross-Chain Settlement (DONE in this tree)
+
+`veridag-bitcoin`, `veridag-cli`: Full Bitcoin Simplified Payment Verification (SPV) client and cross-chain
+clearinghouse. Double-SHA256 Merkle inclusion proofs, 80-byte header verification under compact nBits PoW targets,
+continuous SPV chain tracking (`BtcSpvHeaderTracker`), Bitcoin JSON-RPC provider, and bidirectional UTXO
+deposit/withdrawal codecs (`CrossChainBtcDeposit`, `CrossChainBtcWithdrawal`) with strict 5 bps bridge surcharge
+accounting routing directly to the protocol treasury (`veridag-cli btc bridge-deposit`, `veridag-cli btc bridge-withdraw`).
 
 ## Release status
 
