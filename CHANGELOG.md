@@ -6,6 +6,33 @@ software version (see `protocol/specification/17-upgrades.md`).
 
 ## [Unreleased]
 
+### Security
+
+- Resolved 19 upstream security advisories across workspace dependencies:
+  - Upgraded `wasmtime` to 49.0.3, resolving RUSTSEC-2026-0353 through RUSTSEC-2026-0364.
+  - Upgraded `rustls` to 0.23.46, resolving RUSTSEC-2026-0346 through RUSTSEC-2026-0349.
+  - Upgraded `quinn-proto` to 0.11.19, resolving RUSTSEC-2026-0338, RUSTSEC-2026-0340, and RUSTSEC-2026-0343.
+- Both `cargo deny check` and `cargo audit` now pass with zero vulnerabilities.
+
+### Quality & Toolchain
+
+- Added repository `.gitattributes` to enforce canonical LF line endings across all platforms, ensuring deterministic cross-language hashing and Foundry formatting compliance on Windows.
+- Extended SDK verification in `justfile`, `scripts/publish-sdks.ps1`, and `scripts/publish-sdks.sh` to compile TypeScript declarations, test package entrypoint imports, and build wheel/sdist packages.
+- Aligned builder Rust toolchain in `Dockerfile` to 1.96-bookworm matching `rust-toolchain.toml`.
+
+## [1.1.0] - 2026-10-19
+
+Commercial Monetization & Multi-Chain Sovereign Clearinghouse release (Phases 19, 23, 27, 28, 29, 30, 31).
+
+### Added
+
+- **Ethereum Interoperability Substrate (Phase 19)**: EVM JSON-RPC provider (`eth_gasPrice`, `eth_estimateGas`, `eth_getBlockByNumber`, `eth_chainId`, `eth_getBalance`), BMH-1 Merkle inclusion proof generator/verifier (`BridgeStateProof`), and bidirectional cross-chain bridge codecs (`CrossChainDeposit`, `CrossChainWithdrawal`) with 5 bps surcharge liquidity accounting.
+- **Production Cloud KMS & HSM KeySigner (Phase 23)**: `HsmAirGappedProvider` and `RemoteKmsSigner` with mandatory local Ed25519 cryptographic verification against the expected public key.
+- **Commercial Revenue Operations (Phase 27)**: Real-time telemetry pipeline syncing transaction fees, validator licenses, and float yield into `/home/scott/ai-lab/revenue-os/revenue-os.db` (`scripts/revenue-sync.py`). USMCA trade pilot freight invoice clearance (`veridag-cli usdv freight-clear`), AI agent micro-metering (`veridag-cli usdv agent-meter`), and consortium validator seat licensing (`veridag-cli consortium register-seat`).
+- **Institutional Treasury Float Seigniorage & PoR Attestation (Phase 28)**: High-yield float seigniorage engine accruing 4.85% annual yield on US Treasuries, FDIC cash deposits, and Reverse Repo (`veridag-cli usdv yield-accrue`) with zero-variance conservation-of-value audits (`veridag-cli usdv audit`).
+- **Sovereign Clearinghouse & Bridge Settlement (Phase 29)**: Cross-chain deposit and withdrawal settlement with automated 5 bps bridge surcharge collection (`veridag-cli eth bridge-deposit`, `veridag-cli eth bridge-withdraw`).
+- **Sovereign Subnets & Bitcoin SPV Clearinghouse (Phases 30–31)**: Bitcoin SPV header tracker, JSON-RPC provider, and cross-chain UTXO deposit/withdrawal settlement with 5 bps bridge tolls (`veridag-cli btc bridge-deposit`, `veridag-cli btc bridge-withdraw`).
+
 ## [1.0.0] - 2026-10-14
 
 Stable reference implementation release covering the numbered protocol milestones, production Next.js site portal, and full multi-language SDK distribution.

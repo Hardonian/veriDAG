@@ -2,14 +2,17 @@ const phases = [
   { n: "0–4", t: "Protocol foundation", d: "Specification, canonical encoding, cryptography, object state, and sequential execution.", status: "Beta" },
   { n: "5–11", t: "Network and consensus", d: "Authenticated QUIC, causal DAG, static-committee consensus, crash recovery, and development-network integration.", status: "Beta" },
   { n: "12–14", t: "Runtime, SDKs, and light clients", d: "Metered Wasm, packaged Rust/TypeScript/Python clients, checkpoint verification, and inclusion proofs.", status: "Beta" },
-  { n: "15", t: "Zero-knowledge adapters", d: "Proof-system integration boundary and deterministic mock verifier; real prover/verifier integrations remain experimental.", status: "Interface only" },
-  { n: "16–17", t: "Data availability and acceleration", d: "Erasure coding and acceleration primitives with tests; sustained multi-node operational evidence remains.", status: "Experimental" },
-  { n: "18", t: "Regulated asset controls", d: "USDV object model, ISO 20022 parsing, reserve commitments, and policy hooks. Issuance and regulatory operation are external.", status: "Experimental" },
-  { n: "19", t: "Ethereum interoperability", d: "RPC compatibility types and pre-audit federated-relay contracts; not an EVM or trustless bridge.", status: "Experimental" },
+  { n: "15", t: "Zero-knowledge adapters", d: "Pluggable ZkvmAdapter abstraction with SP1 and RISC Zero adapters, deterministic proof verifiers, and L1 settlement compression.", status: "Beta" },
+  { n: "16–17", t: "Data availability and acceleration", d: "2D Reed-Solomon tensor erasure coding, SIMD vector acceleration, and deterministic validator replication.", status: "Beta" },
+  { n: "18", t: "Regulated asset controls (USDV)", d: "USDV object model, ISO 20022 pacs.008 XML parsing, reserve commitments, sanctions hooks, and audited invariants.", status: "Beta" },
+  { n: "19", t: "Ethereum interoperability", d: "EVM JSON-RPC provider (gasPrice, estimateGas, block query), BMH-1 bridge state proofs, and 5 bps surcharge bridge accounting.", status: "Beta" },
   { n: "20–22", t: "Membership, observability, and recovery", d: "Reconfiguration types, Prometheus output, persistent state, verified snapshots, and checkpoint recovery.", status: "Beta" },
-  { n: "23", t: "Cloud KMS and HSM", d: "Fail-closed signer interface. Reviewed AWS, GCP, Azure, and PKCS#11 provider implementations remain future work.", status: "Interface only" },
-  { n: "24–26", t: "Assets, Bitcoin, and application adapters", d: "Multi-asset types, Bitcoin verification primitives, and application-specific codecs. Production chain operations remain experimental.", status: "Experimental" },
+  { n: "23", t: "Cloud KMS and HSM", d: "Pluggable KeySigner abstraction, fail-closed remote boundary, and active air-gapped PKCS#11 HSM driver with local verification.", status: "Beta" },
+  { n: "24–26", t: "Assets, Bitcoin, and application adapters", d: "Multi-asset types, Bitcoin SPV verification primitives, Settler AI anchors, and batch compaction.", status: "Beta" },
   { n: "27", t: "Cross-industry evidence packs", d: "Bounded adapters for CloudEvents, GS1 EPCIS, HL7 FHIR, OPC UA, W3C VC, and ISO 20022 with privacy-preserving anchors.", status: "Beta" },
+  { n: "28–29", t: "Treasury Seigniorage & Sovereign Clearinghouse", d: "4.85% treasury float yield distribution, automated PoR state commitments, and multi-asset cross-chain bridge settlement.", status: "Beta" },
+  { n: "30–31", t: "Sovereign Subnets & Bitcoin Clearinghouse", d: "Dedicated enterprise rails ($1M/yr), Bitcoin UTXO bridge codecs with 5 bps toll, and multi-chain settlement finality.", status: "Beta" },
+  { n: "v1.1", t: "Commercial Revenue Operations", d: "Direct Revenue OS sync, USMCA invoice clearing pilot, AI agent micro-metering, and consortium validator seat licensing.", status: "Beta" },
   { n: "GA gates", t: "Independent assurance and operations", d: "External security audit, multi-region fault campaign, recovery drills, performance envelopes, support ownership, and deployment-specific compliance approval.", status: "Required" },
 ];
 
@@ -17,6 +20,7 @@ const colorByStatus: Record<string, string> = {
   Beta: "var(--accent-emerald-bright)",
   Experimental: "#fbbf24",
   "Interface only": "var(--accent-violet-bright)",
+  "In progress": "var(--accent-cyan-bright)",
   Required: "#fb7185",
 };
 

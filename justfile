@@ -87,6 +87,10 @@ slither:
 industry:
     {{python}} scripts/validate-industry-packs.py
 
+# Test and verify Revenue OS synchronization
+revenue:
+    {{python}} scripts/revenue-sync.py --test
+
 # Hot-path benchmark suite
 bench:
     cargo bench -p veridag-qa
@@ -107,14 +111,17 @@ site-dev:
 site-build:
     cd site; npm run build
 
-# Run TypeScript SDK conformance tests
+# Run TypeScript SDK conformance tests and verify packaging
 ts-test:
     cd sdks/typescript; npm test
+    cd sdks/typescript; npm run build
+    cd sdks/typescript; npm run verify-package
 
-# Run Python SDK conformance tests
+# Run Python SDK conformance tests and verify packaging
 py-test:
     cd sdks/python; uv run python -m unittest discover -s tests
+    cd sdks/python; uv build
 
 # Full local pre-release gate. Docker soak and fuzz remain explicit because they are long-running.
-release-gate: check vectors audit formal solidity slither industry ts-test py-test site-build
+release-gate: check vectors audit formal solidity slither industry revenue ts-test py-test site-build
     @echo "release-gate: all checks passed"
