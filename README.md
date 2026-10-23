@@ -23,6 +23,8 @@
 > the [capability matrix](docs/capability-matrix.md) before evaluating or
 > deploying the software.
 
+> **Portfolio signal:** VeriDAG is the distributed-systems flagship: a Rust reference engine for deterministic, Byzantine-resilient computation with capability security, formal models, and cryptographic auditability.
+
 Within its documented committee and fault assumptions, it gives mutually distrustful parties—autonomous AI agents, organizations, microservices, cloud nodes, and edge devices—a shared state machine with deterministic agreement and cryptographic auditability.
 
 ```text
