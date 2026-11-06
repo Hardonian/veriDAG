@@ -15,3 +15,7 @@ devnet-data/
 artifacts/
 formal/traces/*.itf.json.tmp
 .vercel/
+
+# Nested clone ignore
+veriDAG/
+
